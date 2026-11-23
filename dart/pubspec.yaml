@@ -1,0 +1,8 @@
+name: live_agiso
+publish_to: none
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  ffi: ^2.1.0
