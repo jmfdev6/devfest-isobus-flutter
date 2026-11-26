@@ -23,7 +23,9 @@ case "${1:-}" in
       exit 0
     fi
     # unshare -r: vira "root" só dentro da bolha; -n: rede própria e vazia
-    unshare -rn sh -c 'ip link add dev vcan0 type vcan && ip link set up vcan0 && exec sleep infinity' &
+    # sem herdar o terminal: senão quem lê a saída deste script (um pipe) espera a bolha acabar
+    unshare -rn sh -c 'ip link add dev vcan0 type vcan && ip link set up vcan0 && exec sleep infinity' \
+      >/dev/null 2>&1 </dev/null &
     echo $! >"$PIDFILE"
     sleep 0.3
     if ! pid_da_bolha >/dev/null; then
