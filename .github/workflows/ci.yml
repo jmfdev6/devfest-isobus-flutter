@@ -8,11 +8,19 @@ jobs:
         with:
           submodules: true
       - run: sudo apt-get update && sudo apt-get install -y ninja-build libgtk-3-dev
-      - name: Ponte C++
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: 3.47.9
           channel: stable
-      - run: cd dart && dart pub get && dart analyze
-      - run: cd app && flutter pub get && flutter analyze && flutter build linux
+      # o mesmo caminho de quem clona o projeto: compila o C++, o pacote e os dois apps
+      - name: ./demo.sh preparar
+        run: ./demo.sh preparar
+      - name: Análise
+        run: |
+          (cd pacotes/agiso && dart analyze)
+          for d in pacotes/cena apps/cabine apps/simulador; do (cd $d && flutter pub get && flutter analyze); done
+      # as verificações que não precisam da rede CAN (a vcan não existe nas máquinas do CI)
+      - name: Shapefile (UTM, prescrição, exportação) e banco
+        run: cd pacotes/agiso && dart run bin/shapefile.dart && dart run bin/banco.dart verificar
+      - name: Física e piloto automático
+        run: cd apps/simulador && dart --enable-asserts lib/fisica.dart && dart --enable-asserts lib/piloto.dart
