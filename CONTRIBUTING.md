@@ -16,11 +16,10 @@ Abra uma [issue](../../issues) contando:
 1. Faça um fork e crie um branch: `git checkout -b minha-melhoria`
 2. Faça a mudança e confira que tudo ainda funciona:
    ```bash
-   cmake -S . -B build -G Ninja && cmake --build build
-   (cd dart && dart analyze)
-   (cd app && flutter analyze)
+   cmake --build build   # se mexeu no C++
+   ./demo.sh testar      # análise e todos os testes
    ```
-   E rode o [passo 4 do README](README.md#passo-4-testar-a-ponte-sem-dart).
+   Tem que terminar com `tudo certo`. Mexeu na documentação técnica (`docs/`)? Veja [como testar o site](https://jmfdev6.github.io/devfest-isobus-flutter/contribuir/).
 3. Faça commit com uma mensagem clara: `git commit -m "Explica o DDI no tc.cpp"`
 4. Abra um Pull Request explicando o que mudou e por quê.
 

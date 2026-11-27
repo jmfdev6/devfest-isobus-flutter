@@ -1,0 +1,46 @@
+name: docs
+
+# Publica a documentação técnica (docs/ + mkdocs.yml) no GitHub Pages
+on:
+  push:
+    branches: [main]
+    paths: [docs/**, mkdocs.yml, .github/workflows/docs.yml]
+  pull_request:
+    paths: [docs/**, mkdocs.yml, .github/workflows/docs.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "mkdocs-material>=9.5,<10"
+      # --strict: link quebrado ou página fora da navegação falha o build
+      - run: mkdocs build --strict
+      - if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
