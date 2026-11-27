@@ -10,7 +10,8 @@ Este projeto foi apresentado ao vivo no **DevFest Cerrado Nortão 2026**. Ele é
 
 | A cabine (a tela do trator) | O simulador (você dirige) |
 |---|---|
-| ![A cabine ISOBUS: a tela da plantadeira, a plantadeira em 3D e o mapa do talhão](docs/imagens/cabine.png) | ![O simulador 3D: o trator puxando a plantadeira no talhão](docs/imagens/simulador.png) |
+| ![A cabine ISOBUS: a tela da plantadeira, com a seção 6 cortada pelo TC na sobreposição](docs/imagens/cabine.png) | ![O simulador 3D: o trator vermelho puxando a plantadeira, com as seções plantando e a última cortada](docs/imagens/simulador.png) |
+| O Task Controller manda a taxa da zona (16 mil/ha) e corta a seção 6, que passaria sobre o que já foi plantado. | A mesma cena em 3D: cinco seções plantando (potes verdes) e a sexta cortada (vermelho). |
 
 > 📘 **Quer os detalhes técnicos?** A documentação completa (arquitetura, mensagens CAN, algoritmos, banco de dados) está em **<https://jmfdev6.github.io/devfest-isobus-flutter/>**. Este README é o guia para começar.
 
@@ -50,10 +51,9 @@ A cabine então faz o que um monitor agrícola de verdade faz: mostra a tela da 
 ## O que você vai ver funcionando
 
 - 🖥️ **A tela da plantadeira** dentro do app: botões, medidor de velocidade, funis verdes (plantando) ou vermelhos (desligados).
-- 🌱 **A plantadeira em 3D**, mostrando quais linhas estão plantando.
-- 🗺️ **O mapa do campo** (o "talhão"), pintado conforme a plantadeira passa.
-- 🚜 **O simulador**: você dirige o trator, ou liga o **piloto automático** e ele planta o campo inteiro sozinho, fazendo as curvas sem sair da área.
-- 📂 **Mapas de verdade**: dá para abrir arquivos *shapefile* (o formato que os softwares de agricultura usam) e guardar cada trabalho feito.
+- 🌱 **O Task Controller trabalhando**: a taxa muda sozinha conforme a zona do campo (TC-GEO) e as seções cortam na cabeceira e onde já foi plantado (TC-SEC).
+- 🚜 **O simulador**: você dirige o trator e planta o campo, vendo a semente cair no chão em 3D.
+- 📂 **Trabalhos guardados**: cada plantio fica salvo, para continuar depois.
 
 ---
 
@@ -169,10 +169,6 @@ Clique na janela do simulador antes, para o teclado ir para ela.
 | acelerador de mão (fica ligado sozinho) | **E** põe, **Q** tira | a alavanca "acelerador" |
 | frente / ré (com o trator parado) | **R** | botão F → R |
 | trocar a câmera (cabine, atrás, de cima) | **C** | botões no canto |
-| piloto automático (liga / solta) | **P** | botão "piloto" |
-| o que o chão mostra (terra, taxa, prescrito × aplicado) | **M** | botões no canto |
-
-**Piloto automático:** chegue perto do caminho desenhado no chão, alinhado com ele, e aperte **P**. A partir daí o trator vira o volante sozinho, e você só cuida do acelerador (aperte **E** algumas vezes). Ele reduz nas curvas e não sai do campo. Mexeu no volante, ele solta, como os de verdade.
 
 Tem um **volante ou controle de videogame USB**? Ligue antes de iniciar a demo: o simulador usa sozinho.
 
@@ -183,12 +179,11 @@ Tem um **volante ou controle de videogame USB**? Ligue antes de iniciar a demo: 
 | Comando | O que faz |
 |---|---|
 | `./demo.sh iniciar --automatico` | ninguém dirige: o trator anda sozinho e você só assiste. Bom para deixar rodando num telão. |
-| `./demo.sh iniciar --talhao exemplos/talhao_sinop.shp` | abre um campo de verdade (um talhão em Sinop-MT, com três zonas de semente). |
 | `./demo.sh status` | mostra o que está ligado. |
 | `./demo.sh testar` | roda todos os testes automáticos (leva uns 3 minutos e termina com `tudo certo`). |
 | `./demo.sh rede` | abre um terminal "dentro" da rede da demo; lá, `candump vcan0` mostra as mensagens passando. |
 
-Para abrir **o seu próprio shapefile**, use o botão **importar shapefile** no simulador. Ele aceita coordenadas em graus ou em UTM, e o mapa de prescrição pode vir num arquivo separado. Os registros de cada programa ficam na pasta `.demo/` (por exemplo, `.demo/cabine.log`).
+Os registros de cada programa ficam na pasta `.demo/` (por exemplo, `.demo/cabine.log`).
 
 ---
 
@@ -230,7 +225,6 @@ Não resolveu? Abra uma [issue](https://github.com/jmfdev6/devfest-isobus-flutte
 | **TC-GEO** | A cabine troca a taxa sozinha conforme o GPS e o mapa de prescrição. |
 | **TC-SEC** | A cabine desliga sozinha as seções que sairiam do talhão ou passariam no já plantado. |
 | **NMEA 2000** | O jeito padrão de o GPS mandar a posição pela rede CAN. |
-| **Shapefile** | O formato de arquivo de mapas mais comum (`.shp`, `.dbf`, `.prj`...). |
 | **UTM** | Um jeito de escrever coordenadas em metros, em vez de graus. |
 | **Flutter / Dart** | A ferramenta do Google para criar apps, e a linguagem dela. |
 | **FFI** | O jeito de o Dart chamar código escrito em C/C++. |
@@ -241,12 +235,11 @@ Não resolveu? Abra uma [issue](https://github.com/jmfdev6/devfest-isobus-flutte
 ## Como o código está organizado
 
 ```
-apps/cabine/       o app da cabine (Flutter): tela do VT, TC, plantadeira 3D e mapa
-apps/simulador/    o simulador 3D (Flutter): física, volante, piloto automático
-pacotes/agiso/     a ponte Dart ↔ C, o talhão, o shapefile, a rota, o banco de dados
+apps/cabine/       o app da cabine (Flutter): tela do VT e TC
+apps/simulador/    o simulador 3D (Flutter): física, volante, trabalhos
+pacotes/agiso/     a ponte Dart ↔ C, o talhão, o mapa de aplicação, o banco de dados
 pacotes/cena/      os modelos 3D e o mapa, usados pelos dois apps
 nativo/            a parte em C++: a ponte com a AgIsoStack++, o trator e a plantadeira
-exemplos/          talhões de exemplo em shapefile
 scripts/           a rede virtual e os testes automáticos
 demo.sh            prepara, liga, desliga e testa tudo
 ```

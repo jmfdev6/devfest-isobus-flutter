@@ -70,9 +70,8 @@ nav:
       - Terminal Virtual (VT): vt.md
       - Task Controller (TC): tc.md
   - Agricultura de precisão:
-      - Talhão e shapefile: talhao.md
-      - Mapa de aplicação: mapa-aplicacao.md
-      - Rota e piloto automático: piloto.md
+      - Talhão: talhao.md
+      - Mapa de cobertura: mapa-aplicacao.md
   - Apps:
       - Simulador e física: simulador.md
       - 3D com flutter_scene: 3d.md

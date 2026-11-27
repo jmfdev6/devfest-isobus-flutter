@@ -98,6 +98,10 @@ A plantadeira em [`nativo/plantadeira/`](https://github.com/jmfdev6/devfest-isob
 - **Cabeceira:** quando a barra sai do talhão, as seções cortam **uma a uma**, conforme cada centro cruza a divisa.
 - **Sobreposição:** na volta, a seção que passaria por cima do plantado é cortada.
 
+### Na cabine
+
+A cabine mostra só a tela do VT. O TC automático trabalha por trás, sempre ligado, com o talhão que o simulador marcou como ativo no banco (lido a cada 2 s; com `--talhao-demo`, o talhão da demo). O efeito aparece na própria tela da plantadeira: a taxa muda de zona em zona e os funis das seções cortadas ficam vermelhos.
+
 ### O engate
 
 A plantadeira é **rebocada**: gira em torno do pino do engate. O TC e o 3D usam o mesmo modelo (`Engate`), então o corte bate com o que se vê.

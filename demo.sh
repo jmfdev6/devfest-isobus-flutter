@@ -5,16 +5,12 @@
 #   ./demo.sh iniciar [opções]    sobe a rede CAN, a cabine, a plantadeira e o simulador
 #   ./demo.sh parar               desliga tudo
 #   ./demo.sh status              o que está rodando
-#   ./demo.sh testar [--rapido]   as verificações e os testes com a rede CAN
+#   ./demo.sh testar              as verificações e os testes com a rede CAN
 #   ./demo.sh rede                abre um shell na rede da demo (para o candump, por exemplo)
 #
 # Opções do iniciar:
 #   --automatico      sem motorista: o ./build/trator anda sozinho e o simulador só assiste
-#   --sem-tc          a cabine abre com o TC automático desligado
-#   o resto vai para o simulador, por exemplo:
-#     ./demo.sh iniciar --talhao exemplos/talhao_sinop.shp
-#     ./demo.sh iniciar --talhao exemplos/contorno_sinop_utm.shp \
-#         --prescricao exemplos/prescricao_sinop.shp --campo DOSE_MIL --fator 1000
+#   o resto vai para o simulador
 #
 # A rede: usa a vcan0 se ela existir (./scripts/setup_vcan.sh, com sudo); senão cria uma
 # "bolha" só desta demo (sem sudo, veja scripts/bolha.sh).
@@ -102,11 +98,10 @@ esperar() { # $1 = arquivo, $2 = padrão, $3 = segundos
 rodando() { [[ -f "$DEMO/$1.pid" ]] && kill -0 "$(cat "$DEMO/$1.pid")" 2>/dev/null; }
 
 iniciar() {
-  local automatico=0 tc=(--tc-auto) resto=()
+  local automatico=0 tc=() resto=()
   while [[ $# -gt 0 ]]; do
     case $1 in
       --automatico) automatico=1 ;;
-      --sem-tc) tc=() ;;
       *) resto+=("$1") ;;
     esac
     shift
@@ -136,8 +131,8 @@ iniciar() {
   fi
   cat <<EOF
 
-  A demo está no ar. No simulador: W acelera, A/D volante, P piloto automático,
-  C câmera, M mapa no chão. Registros em .demo/   Para desligar: ./demo.sh parar
+  A demo está no ar. No simulador: W acelera, A/D volante,
+  C câmera. Registros em .demo/   Para desligar: ./demo.sh parar
 EOF
 }
 
@@ -163,17 +158,14 @@ status() {
 }
 
 testar() {
-  local rapido=0
-  [[ "${1:-}" == --rapido ]] && rapido=1
   for nome in cabine plantadeira simulador trator; do
     rodando "$nome" && erro "a demo está rodando: ./demo.sh parar antes de testar"
   done
   [[ -x build/seeder && -x build/trator ]] || preparar
-  azul "pacote Dart: análise, shapefile (UTM, prescrição, exportação) e banco..."
-  (cd pacotes/agiso && dart_ analyze && dart_ run bin/shapefile.dart | tail -1 && dart_ run bin/banco.dart verificar)
-  azul "simulador: física e piloto automático..."
+  azul "pacote Dart: análise e banco..."
+  (cd pacotes/agiso && dart_ analyze && dart_ run bin/banco.dart verificar)
+  azul "simulador: física..."
   (cd apps/simulador && dart_ --enable-asserts lib/fisica.dart)
-  ((rapido)) || (cd apps/simulador && dart_ --enable-asserts lib/piloto.dart)
   # os testes com a rede CAN numa bolha só deles, sem mexer na vcan0 nem na da demo
   azul "Task Controller com a plantadeira..."
   XDG_RUNTIME_DIR=$(mktemp -d) ./scripts/teste_tc.sh

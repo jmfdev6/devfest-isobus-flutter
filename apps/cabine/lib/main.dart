@@ -1,26 +1,46 @@
-// main.dart — a cabine em Flutter: a rotação (passo 6), a tela do VT e a taxa do TC (passos 9 e 10),
-// e ao lado do VT a plantadeira em 3D e o mapa do TC automático (TC-GEO e TC-SEC)
+// main.dart — a cabine em Flutter: a rotação (passo 6), a tela do VT e a taxa do TC (passos 9 e 10)
+//
+// O TC automático (TC-GEO e TC-SEC) trabalha por trás, sempre ligado: a taxa pela zona e
+// o corte das seções. O talhão é o que o simulador marcou como ativo no banco local.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:agiso/agiso.dart';
+import 'package:agiso/banco.dart';
 import 'package:agiso/geo.dart';
 
-import 'painel_tc.dart';
 import 'tela_vt.dart';
 
 final agiso = Agiso();
-final tc = TcAutomatico(
-  agiso,
-); // liga pelo chip "TC automático" ao lado do mapa
+// GEO + SEC sempre ligados. Criado em main(): uma variável global do Dart só nasce no
+// primeiro uso, e sem nada na tela usando o TC ele nunca ouviria o GPS.
+late final TcAutomatico tc;
 
-// flutter run -d linux -a --tc-auto       já abre com o TC automático ligado
 // flutter run -d linux -a --talhao-demo   fica no talhão da demo (o do ./build/trator)
 late final bool usarBanco;
 
 void main(List<String> args) {
-  tc.ligado = args.contains('--tc-auto');
   usarBanco = !args.contains('--talhao-demo');
+  tc = TcAutomatico(agiso)..ligado = true;
   agiso.iniciar('vcan0');
+  if (usarBanco) _vigiarTalhao(Banco.abrir());
   runApp(const MaterialApp(home: Cabine()));
+}
+
+// Outro programa (o simulador) pode trocar o talhão ativo: pergunta a cada 2 s qual é
+void _vigiarTalhao(Banco banco) {
+  int? atual;
+  Future<void> olhar() async {
+    final id = await banco.idTalhaoAtivo();
+    if (id == null || id == atual) return;
+    final ativo = await banco.talhaoAtivo();
+    if (ativo == null) return;
+    atual = ativo.id;
+    tc.trocarTalhao(ativo.talhao);
+  }
+
+  olhar();
+  Timer.periodic(const Duration(seconds: 2), (_) => olhar());
 }
 
 class Cabine extends StatelessWidget {
@@ -53,20 +73,10 @@ class Cabine extends StatelessWidget {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  // [passo 10]
-                  // A tela que o implemento mandou, desenhada como num terminal de verdade
-                  Expanded(flex: 3, child: TelaVT(agiso: agiso)),
-                  // [/passo 10]
-                  const SizedBox(width: 16),
-                  // A plantadeira em 3D e o mapa do talhão
-                  Expanded(
-                    flex: 2,
-                    child: PainelTc(agiso: agiso, tc: tc, usarBanco: usarBanco),
-                  ),
-                ],
-              ),
+              // [passo 10]
+              // A tela que o implemento mandou, desenhada como num terminal de verdade
+              child: TelaVT(agiso: agiso),
+              // [/passo 10]
             ),
           ),
           // [passo 9]

@@ -18,8 +18,6 @@ Precisa terminar com `tudo certo`. O CI roda a análise e os autotestes que não
 | desenhar um objeto VT novo | `nativo/ponte/vt.cpp` (`Pintor::objeto`) + `apps/cabine/lib/tela_vt.dart` |
 | outro DDI no TC | `nativo/ponte/tc.cpp` (`on_value_command` → `avisar`) + um evento novo |
 | outra regra de corte de seção | `TcAutomatico.aoGps` em `pacotes/agiso/lib/geo.dart` |
-| outra projeção no shapefile | `pacotes/agiso/lib/shapefile.dart` (`Shapefile.ler`) |
-| outra estratégia de rota | `pacotes/agiso/lib/rota.dart` + o autoteste em `apps/simulador/lib/piloto.dart` |
 | uma coluna no banco | `pacotes/agiso/lib/banco.dart`, `schemaVersion` + `onUpgrade`, `dart run build_runner build` |
 
 ## Convenções

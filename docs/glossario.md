@@ -2,11 +2,9 @@
 
 | Termo | Definição |
 |---|---|
-| **AB (linha AB)** | a reta de referência das passadas paralelas, definida por dois pontos A e B |
 | **Address Claim** | o anúncio, no J1939/ISO 11783-5, do endereço (0–253) que uma ECU vai usar, junto com o NAME dela |
 | **AgIsoStack++** | pilha ISOBUS aberta em C++ da Open-Agriculture; faz o trabalho pesado do protocolo |
 | **As-applied** | mapa de aplicação: o que de fato foi aplicado, onde |
-| **Barra de luz** | indicador do desvio lateral em relação à linha guia |
 | **Cabeceira** | a faixa nas bordas do talhão onde o trator manobra; é plantada no fim |
 | **CAN** | *Controller Area Network*: barramento serial com mensagens de até 8 bytes e identificadores de 11 ou 29 bits |
 | **COG / SOG** | *Course / Speed Over Ground*: rumo e velocidade sobre o solo, medidos pelo GNSS |
@@ -29,9 +27,7 @@
 | **Passada** | um percurso em linha reta do trator pelo talhão |
 | **PGN** | *Parameter Group Number*: o "tipo" de uma mensagem J1939 |
 | **Process data** | PGN `0xCB00`: a troca de valores entre TC e implemento |
-| **Pure pursuit** | algoritmo de seguimento de caminho que mira um ponto adiante na rota |
 | **Seção** | parte da barra que liga e desliga separada (aqui, 6 de 1,524 m) |
-| **Shapefile** | formato vetorial da ESRI: `.shp` (geometria), `.dbf` (atributos), `.prj` (projeção), `.shx` (índice) |
 | **SocketCAN** | a API de CAN do kernel Linux; `vcan` é a interface virtual |
 | **Soft key** | tecla programável ao lado da tela do VT |
 | **Talhão** | a área de lavoura com contorno definido |

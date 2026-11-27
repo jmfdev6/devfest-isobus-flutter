@@ -7,15 +7,16 @@ Documentação técnica do projeto apresentado no **DevFest Cerrado Nortão 2026
 
 | Cabine | Simulador |
 |---|---|
-| ![Cabine ISOBUS](imagens/cabine.png) | ![Simulador do trator](imagens/simulador.png) |
+| ![Cabine ISOBUS: a tela do VT com a seção 6 cortada pelo TC-SEC](imagens/cabine.png) | ![Simulador do trator: a plantadeira com cinco seções plantando e a sexta cortada](imagens/simulador.png) |
+| TC-GEO manda 16 mil/ha (a zona da barra) e TC-SEC corta a seção 6 na sobreposição. | O mesmo momento em 3D: o pote fica verde (plantando) ou vermelho (cortado). |
 
 ## O que o sistema faz
 
 - **Terminal Virtual (VT, ISO 11783-6):** recebe o *object pool* de um implemento, transforma cada máscara em uma lista de desenho JSON e a desenha em Flutter (textos, retângulos, elipses, linhas, figuras, medidores, soft keys). Toques voltam ao implemento como ativações de botão ou de soft key.
 - **Task Controller (TC, ISO 11783-10):** recebe o DDOP, assina os valores do implemento e envia *setpoints* (taxa alvo, estado das seções).
 - **TC-GEO e TC-SEC automáticos:** com a posição do GPS (NMEA 2000), escolhe a taxa pelo mapa de prescrição e corta as seções fora do talhão ou sobre área já plantada.
-- **Simulador 3D** ([flutter_scene](https://pub.dev/packages/flutter_scene)): é o trator na rede (GPS NMEA 2000, velocidade de solo, rotação do motor), com física de bicicleta, plantadeira rebocada e piloto automático por *pure pursuit*.
-- **Shapefile** (leitura e escrita, graus e UTM), **mapa de aplicação**, relatório prescrito × aplicado e persistência local com **drift** (SQLite).
+- **Simulador 3D** ([flutter_scene](https://pub.dev/packages/flutter_scene)): é o trator na rede (GPS NMEA 2000, velocidade de solo, rotação do motor), com física de bicicleta e plantadeira rebocada.
+- **TC-BAS, TC-GEO e TC-SEC** mostrados ao vivo na cabine, com o mapa de cobertura e persistência local com **drift** (SQLite).
 
 ## Mapa da documentação
 
@@ -28,8 +29,7 @@ Documentação técnica do projeto apresentado no **DevFest Cerrado Nortão 2026
 | saber o que trafega na rede | [Rede CAN e mensagens](rede-can.md) |
 | mexer no desenho da tela do implemento | [Terminal Virtual](vt.md) |
 | entender DDOP, DDIs e o corte de seções | [Task Controller](tc.md) |
-| importar ou exportar mapas | [Talhão e shapefile](talhao.md), [Mapa de aplicação](mapa-aplicacao.md) |
-| mudar o planejamento de rota | [Rota e piloto automático](piloto.md) |
+| mudar o talhão ou a cobertura | [Talhão](talhao.md), [Mapa de cobertura](mapa-aplicacao.md) |
 | ajustar a física ou o controle USB | [Simulador e física](simulador.md) |
 | mexer no 3D | [3D com flutter_scene](3d.md) |
 | mudar as tabelas | [Banco de dados](banco.md) |

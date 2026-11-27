@@ -54,8 +54,6 @@ Autoteste: `cd apps/simulador && dart --enable-asserts lib/fisica.dart`.
 | freio | S, ↓, espaço | — | eixo 2 (gatilho esquerdo) |
 | frente/ré | R | botão F → R | botão 0 (A / X) |
 | câmera | C | botões | botão 3 (Y / △) |
-| piloto | P | botão "piloto" | — |
-| chão | M | terra / taxa / prescrito × aplicado | — |
 
 ### Volante USB
 
@@ -70,26 +68,15 @@ Autoteste: `cd apps/simulador && dart --enable-asserts lib/fisica.dart`.
 
 O mapeamento está nas constantes do topo do arquivo (`eixoVolante`, `eixoAcelerador`, `eixoFreio`, `botaoSentido`, `botaoCamera`, `pedalInvertido`). Para um volante com pedais (Logitech G29, por exemplo), descubra os números com `jstest /dev/input/js0` e ajuste. Sem joystick ou sem permissão de leitura, o simulador segue sem ele.
 
-## Importar shapefile
-
-O botão **importar shapefile** ([`importar.dart`](https://github.com/jmfdev6/devfest-isobus-flutter/blob/main/apps/simulador/lib/importar.dart)) abre um diálogo com:
-
-- contorno (obrigatório) e prescrição (opcional, outro arquivo);
-- o campo da taxa (só os numéricos, com o provável pré-selecionado) e a unidade (adivinhada pelos valores);
-- taxa padrão e nome.
-
-O talhão é salvo no [banco](banco.md) e marcado como **ativo**; a cabine o carrega em até 2 s. O trator é levado à entrada do talhão e a AB padrão é calculada. Detalhes do formato em [Talhão e shapefile](talhao.md).
-
 ## Trabalhos
 
 | Botão | Efeito |
 |---|---|
 | novo trabalho | encerra o atual e começa um mapa em branco |
-| trabalhos | histórico do talhão; cada um com **ver** e **continuar** |
-| ver | o mapa nos três modos, legenda, relatório e **exportar shapefile** ([`ver_trabalho.dart`](https://github.com/jmfdev6/devfest-isobus-flutter/blob/main/apps/simulador/lib/ver_trabalho.dart)) |
+| trabalhos | histórico do talhão (área, sementes, distância); **continuar** reabre um antigo |
 
 O trabalho é salvo **a cada 10 s** e ao fechar. Ao abrir de novo, o simulador continua o trabalho aberto do talhão ativo.
 
 ## Painel
 
-[`painel.dart`](https://github.com/jmfdev6/devfest-isobus-flutter/blob/main/apps/simulador/lib/painel.dart): o volante arrastável (acumula voltas, com pomo de manobra), velocímetro, conta-giros e marcha, a alavanca do acelerador e a **barra de luz** do piloto: os LEDs acendem para o lado em que o trator está fora da linha (5 cm por LED), com o trecho ("passada 3 de 17", "curva", "cabeceira 1 de 2") e o estado (engatado, pronto, desengatado).
+[`painel.dart`](https://github.com/jmfdev6/devfest-isobus-flutter/blob/main/apps/simulador/lib/painel.dart): o volante arrastável (acumula voltas, com pomo de manobra), velocímetro, conta-giros e marcha, e a alavanca do acelerador.

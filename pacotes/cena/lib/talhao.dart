@@ -3,41 +3,48 @@
 // Mundo: X = leste, Y = cima, Z = norte (o flutter_scene é mão esquerda), em metros a
 // partir da origem do talhão. O chão do talhão é UM plano com UMA textura do tamanho do
 // mapa de aplicação: plantar é pintar pixels (nada de uma peça 3D por célula). A cor de
-// base sai do contorno e das zonas do talhão (shapefile), calculada num isolate.
+// base sai do contorno e das zonas do talhão, calculada num isolate.
+import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_scene/scene.dart';
 import 'package:agiso/geo.dart';
-import 'package:agiso/rota.dart';
 import 'package:vector_math/vector_math.dart' as vm;
-
-import 'package:agiso/relatorio.dart';
 
 import 'cena.dart';
 
 vm.Vector3 _mundo(double e, double n, [double y = 0]) => vm.Vector3(e, y, n);
 
-PhysicallyBasedMaterial _cor(
-  double r,
-  double g,
-  double b, {
-  double aspereza = 0.95,
-}) => PhysicallyBasedMaterial()
-  ..baseColorFactor = vm.Vector4(r, g, b, 1)
-  ..roughnessFactor = aspereza;
-
 /// Onde o trator está neste quadro: metros (leste, norte), rumo e esterço em graus.
 typedef PoseTrator = ({double e, double n, double rumo, double esterco});
 
-/// O caminho do piloto (a rota planejada) e até onde ele já foi (índice do segmento).
-typedef Guia = ({List<PontoRota> rota, int progresso, bool ligado});
-
 enum Camera3D { cabine, atras, cima }
 
-/// O que o chão plantado mostra: terra revolvida, a taxa aplicada ou prescrito x aplicado.
-enum ModoChao { terra, taxa, comparacao }
+/// A prescrição na grade do mapa (o código da taxa por célula; 0 = fora do talhão),
+/// calculada fora da tela (um isolate): dá a cor de base do chão.
+Future<Uint8List> prescricaoEmSegundoPlano(Talhao t, MapaAplicacao m) {
+  // o isolate recebe uma cópia: um mapa vazio com a mesma grade basta
+  final grade = MapaAplicacao.de(
+    origemE: m.origemE,
+    origemN: m.origemN,
+    celula: m.celula,
+    largura: m.largura,
+    altura: m.altura,
+    dados: Uint8List(0),
+  );
+  final celulas = m.largura * m.altura;
+  return Isolate.run(() {
+    final g = Uint8List(celulas);
+    for (var i = 0; i < celulas; i++) {
+      final c = grade.centro(i);
+      final taxa = t.taxa(c.e, c.n);
+      if (taxa != null) g[i] = MapaAplicacao.codigo(taxa);
+    }
+    return g;
+  });
+}
 
 class CenaTalhao extends StatefulWidget {
   const CenaTalhao({
@@ -46,8 +53,6 @@ class CenaTalhao extends StatefulWidget {
     required this.tc,
     required this.secoes,
     this.camera = Camera3D.atras,
-    this.chao = ModoChao.terra,
-    this.guia,
   });
 
   /// Chamada a cada quadro com o tempo passado (s): a física do simulador, ou o GPS.
@@ -60,8 +65,6 @@ class CenaTalhao extends StatefulWidget {
   final List<bool>? secoes;
 
   final Camera3D camera;
-  final ModoChao chao;
-  final Guia? guia;
 
   @override
   State<CenaTalhao> createState() => _CenaTalhaoState();
@@ -121,20 +124,12 @@ class _CenaTalhaoState extends State<CenaTalhao> {
   // o chão do talhão: textura = cor de base + o que foi plantado
   Node? _campo, _pastoNo;
   Texture2D? _textura;
-  Uint8List? _pixels, _base, _prescricao;
+  Uint8List? _pixels, _base;
   MapaAplicacao? _mapaDaTextura;
   bool _sujo = false;
   Duration _ultimoEnvio = Duration.zero;
   int _geracao =
       0; // descarta uma cor de base que chegou atrasada (talhão trocado)
-
-  // as linhas de guia do piloto
-  final _guias = Node(name: 'guias');
-  InstancedMesh? _segmentos;
-  List<PontoRota>? _rotaDesenhada;
-  int _progressoDesenhado = -1;
-  bool _ligadoDesenhado = false;
-  bool _guiasValidas = false;
 
   double _andado = 0, _velocidade = 0;
   ({double e, double n})? _ultima;
@@ -161,7 +156,6 @@ class _CenaTalhaoState extends State<CenaTalhao> {
       ..density = 0.003
       ..start = 60
       ..skyColorInfluence = 0.85;
-    _cena.add(_guias);
 
     final trator = await Trator3D.carregar();
     final plantadeira = await Plantadeira3D.carregar();
@@ -221,7 +215,6 @@ class _CenaTalhaoState extends State<CenaTalhao> {
     final m = widget.tc.mapa, t = widget.tc.talhao;
     final prescricao = await prescricaoEmSegundoPlano(t, m);
     if (!mounted || geracao != _geracao) return;
-    _prescricao = prescricao;
     _base = _corDeBase(prescricao, m.largura);
     final base = Uint8List.fromList(_base!);
     // o que já foi plantado (mapa de um trabalho que continua) entra por cima
@@ -255,42 +248,16 @@ class _CenaTalhaoState extends State<CenaTalhao> {
     _pixels = base;
     _mapaDaTextura = m;
     _sujo = false;
-    _guiasValidas = false; // as guias se refazem no talhão novo
     if (mounted) setState(() {});
   }
 
-  // A cor de uma célula plantada, pelo modo do chão: terra revolvida (escura, com
-  // variação), a taxa aplicada (mapa de calor), ou a classe do prescrito x aplicado.
-  // Sempre puxada para o escuro da terra, para o chão continuar parecendo chão.
+  // A cor de uma célula plantada: terra revolvida (escura, com variação); um pouco
+  // arroxeada onde a plantadeira passou duas vezes (sobreposição)
   void _pintarPlantado(Uint8List px, int i, MapaAplicacao m) {
     final v = 0.85 + 0.3 * _ruido(i, 7);
-    final sobreposto = m.sobrepostas[i] != 0;
-    final terra = sobreposto
+    final (r, g, b) = m.sobrepostas[i] != 0
         ? (0.24 * v, 0.11 * v, 0.16 * v)
         : (0.22 * v, 0.15 * v, 0.09 * v);
-    var (r, g, b) = terra;
-    final p = _prescricao;
-    Color? cor;
-    if (widget.chao == ModoChao.taxa) {
-      cor = sobreposto
-          ? coresDaClasse[Classe.sobreposto]
-          : corDaTaxa(MapaAplicacao.taxaDe(m.dados[i]));
-    } else if (widget.chao == ModoChao.comparacao && p != null && p[i] != 0) {
-      final dif = (m.dados[i] - p[i]) / p[i];
-      cor = sobreposto
-          ? coresDaClasse[Classe.sobreposto]
-          : dif < -0.05
-          ? coresDaClasse[Classe.abaixo]
-          : dif > 0.05
-          ? coresDaClasse[Classe.acima]
-          : coresDaClasse[Classe.certo];
-    }
-    if (cor != null) {
-      // 70% da cor, 30% da textura da terra
-      r = cor.r * 0.7 * v + r * 0.3;
-      g = cor.g * 0.7 * v + g * 0.3;
-      b = cor.b * 0.7 * v + b * 0.3;
-    }
     px[i * 4] = (r * 255).round().clamp(0, 255);
     px[i * 4 + 1] = (g * 255).round().clamp(0, 255);
     px[i * 4 + 2] = (b * 255).round().clamp(0, 255);
@@ -304,81 +271,9 @@ class _CenaTalhaoState extends State<CenaTalhao> {
     _sujo = true;
   }
 
-  // trocou o modo do chão: repinta tudo o que foi plantado
-  void _repintar() {
-    final px = _pixels, base = _base, m = _mapaDaTextura;
-    if (px == null || base == null || m == null) return;
-    px.setAll(0, base);
-    for (var i = 0; i < m.dados.length; i++) {
-      if (m.dados[i] != 0) _pintarPlantado(px, i, m);
-    }
-    _sujo = true;
-  }
-
-  // O caminho do piloto no chão: uma faixa fina por segmento, numa malha instanciada
-  // só. Feito: verde-escuro; os próximos 40 m: laranja; o resto: branco.
-  void _desenharGuias() {
-    final g = widget.guia;
-    final rota = g?.rota;
-    if (!_guiasValidas || !identical(rota, _rotaDesenhada)) {
-      _guiasValidas = true;
-      _rotaDesenhada = rota;
-      _progressoDesenhado = -1;
-      for (final filho in List.of(_guias.children)) {
-        _guias.remove(filho);
-      }
-      _segmentos = null;
-      if (rota == null || rota.length < 2) return;
-      final malha = InstancedMesh(
-        geometry: CuboidGeometry(vm.Vector3(1, 1, 1)),
-        material: _cor(1, 1, 1, aspereza: 0.5),
-      );
-      for (var i = 0; i + 1 < rota.length; i++) {
-        final a = rota[i], b = rota[i + 1];
-        final l = math.sqrt(math.pow(b.e - a.e, 2) + math.pow(b.n - a.n, 2));
-        malha.addInstance(
-          vm.Matrix4.translation(_mundo((a.e + b.e) / 2, (a.n + b.n) / 2, 0.03))
-            ..rotateY(math.atan2(b.e - a.e, b.n - a.n))
-            ..scaleByVector3(vm.Vector3(0.2, 0.02, l + 0.1)),
-          color: vm.Vector4(1, 1, 1, 1),
-        );
-      }
-      _segmentos = malha;
-      _guias.add(
-        Node(name: 'rota')..addComponent(InstancedMeshComponent(malha)),
-      );
-    }
-    final malha = _segmentos;
-    if (g == null || malha == null) return;
-    if (g.progresso == _progressoDesenhado && g.ligado == _ligadoDesenhado) {
-      return;
-    }
-    _progressoDesenhado = g.progresso;
-    _ligadoDesenhado = g.ligado;
-    final r = g.rota;
-    var adiante = 0.0;
-    for (var i = 0; i + 1 < r.length; i++) {
-      vm.Vector4 cor;
-      if (i < g.progresso) {
-        cor = vm.Vector4(0.15, 0.45, 0.15, 1); // feito
-      } else if (adiante < 40) {
-        cor = g.ligado
-            ? vm.Vector4(1, 0.45, 0.05, 1)
-            : vm.Vector4(1, 0.8, 0.2, 1); // o que vem
-        adiante += math.sqrt(
-          math.pow(r[i + 1].e - r[i].e, 2) + math.pow(r[i + 1].n - r[i].n, 2),
-        );
-      } else {
-        cor = vm.Vector4(0.95, 0.95, 0.9, 1);
-      }
-      malha.setInstanceColor(i, cor);
-    }
-  }
-
   @override
   void didUpdateWidget(CenaTalhao antigo) {
     super.didUpdateWidget(antigo);
-    if (antigo.chao != widget.chao) _repintar();
     if (widget.secoes != null) _plantadeira?.mostrarSecoes(widget.secoes!);
   }
 
@@ -449,12 +344,8 @@ class _CenaTalhaoState extends State<CenaTalhao> {
       _sujo = false;
       _ultimoEnvio = agora;
     }
-    _desenharGuias();
-    // de cima (centenas de metros): a neblina do horizonte cobriria tudo, e as guias
-    // finas, menores que um pixel, viram chuvisco. Ficam só o talhão e a linha ativa.
-    final deCima = widget.camera == Camera3D.cima;
-    _cena.fog.enabled = !deCima;
-    // de cima a rota continua: é uma faixa só por segmento, sem chuvisco
+    // de cima (centenas de metros): a neblina do horizonte cobriria tudo
+    _cena.fog.enabled = widget.camera != Camera3D.cima;
 
     final frente = vm.Vector3(math.sin(h), 0, math.cos(h));
     final direita = vm.Vector3(math.cos(h), 0, -math.sin(h));

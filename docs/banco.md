@@ -19,7 +19,7 @@ NativeDatabase.createInBackground(arquivo, setup: (db) {
 });
 ```
 
-O simulador importa o shapefile e marca o talhão como **ativo**. A cabine pergunta `idTalhaoAtivo()` a cada 2 s, uma consulta barata, e, se mudou, carrega o talhão e passa a usar a prescrição dele no TC-GEO. Com `--talhao-demo`, a cabine não usa o banco.
+O simulador grava o talhão e o marca como **ativo**. A cabine pergunta `idTalhaoAtivo()` a cada 2 s, uma consulta barata, e, se mudou, carrega o talhão e passa a usar a prescrição dele no TC-GEO. Com `--talhao-demo`, a cabine não usa o banco.
 
 ## Esquema (v2)
 

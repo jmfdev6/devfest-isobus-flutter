@@ -114,7 +114,7 @@ candump vcan0
 ./build/trator vcan0 8      # anda no talhão da demo, 60 × 120 m em Sinop-MT
 ```
 
-O trator manda 129025, 129026, 129029, 127250 e `0xFE49` (substitui o `send_velocidade.sh`). Na cabine, o chip "TC automático (GEO + SEC)" (ou `g`):
+O trator manda 129025, 129026, 129029, 127250 e `0xFE49` (substitui o `send_velocidade.sh`). Na cabine, o TC automático (GEO + SEC) já vem ligado e o efeito aparece na tela do VT (no modo texto, `g` liga e desliga):
 
 - **TC-GEO:** a taxa pela faixa do mapa (12, 20 e 16 mil/ha de sul a norte);
 - **TC-SEC:** cada seção liga só dentro do talhão e fora do já plantado. As passadas do trator automático ficam a 7,6 m e a barra tem 9,1 m: na volta, a seção sobreposta é cortada; na cabeceira, as seções cortam uma a uma.
@@ -133,15 +133,9 @@ flutter run -d linux -a --ouvinte       # só acompanha o ./build/trator
 
 Controles e física em [Simulador](simulador.md); renderização em [3D](3d.md).
 
-## 11. Shapefile, piloto e trabalhos
+## 11. Trabalhos
 
-```bash
-flutter run -d linux -a --talhao -a ../../exemplos/talhao_sinop.shp
-flutter run -d linux -a --talhao -a ../../exemplos/contorno_sinop_utm.shp \
-  -a --prescricao -a ../../exemplos/prescricao_sinop.shp -a --campo -a DOSE_MIL -a --fator -a 1000
-```
-
-Com o trator perto da rota e alinhado, **P** engata o piloto. A cabine troca para o talhão importado em até 2 s. Detalhes em [Talhão e shapefile](talhao.md), [Rota e piloto](piloto.md), [Mapa de aplicação](mapa-aplicacao.md) e [Banco](banco.md).
+No simulador, **novo trabalho** começa do zero e **trabalhos** mostra o histórico (área, sementes, distância) e deixa continuar um antigo. Detalhes em [Mapa de cobertura](mapa-aplicacao.md) e [Banco](banco.md).
 
 ## Ordem no dia
 
@@ -149,7 +143,7 @@ A ordem importa: **a cabine sobe antes da plantadeira** (veja [por quê](demo.md
 
 ```bash
 ./scripts/setup_vcan.sh                                  # 1. rede
-cd apps/cabine && flutter run -d linux -a --tc-auto      # 2. cabine com TC automático
+cd apps/cabine && flutter run -d linux                   # 2. cabine (TC automático já ligado)
 cd build && ./seeder --interface vcan0                   # 3. plantadeira (espere "TC | assinei")
 cd apps/simulador && flutter run -d linux                # 4. trator: você dirige
 ```

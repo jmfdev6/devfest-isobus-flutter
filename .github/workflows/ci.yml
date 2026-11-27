@@ -20,7 +20,7 @@ jobs:
           (cd pacotes/agiso && dart analyze)
           for d in pacotes/cena apps/cabine apps/simulador; do (cd $d && flutter pub get && flutter analyze); done
       # as verificações que não precisam da rede CAN (a vcan não existe nas máquinas do CI)
-      - name: Shapefile (UTM, prescrição, exportação) e banco
-        run: cd pacotes/agiso && dart run bin/shapefile.dart && dart run bin/banco.dart verificar
-      - name: Física e piloto automático
-        run: cd apps/simulador && dart --enable-asserts lib/fisica.dart && dart --enable-asserts lib/piloto.dart
+      - name: Banco
+        run: cd pacotes/agiso && dart run bin/banco.dart verificar
+      - name: Física
+        run: cd apps/simulador && dart --enable-asserts lib/fisica.dart

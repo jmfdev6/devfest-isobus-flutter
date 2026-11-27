@@ -5,15 +5,13 @@
 // vêm do que a plantadeira informa ao TC da cabine. Não rode junto com o ./build/trator.
 //
 //   flutter run -d linux                                 você dirige
-//   flutter run -d linux -a --talhao -a ../../exemplos/talhao_sinop.shp   já abre um shapefile
-//     (contorno e prescrição separados: --talhao C.shp --prescricao P.shp --campo DOSE --fator 1000)
 //   flutter run -d linux -a --ouvinte                    só acompanha o ./build/trator
 //
-// O talhão (shapefile importado) e cada trabalho, com o mapa de aplicação, ficam no
-// banco local (drift): a cabine lê o mesmo talhão e usa o mesmo mapa de prescrição.
+// O talhão (o da demo) e cada trabalho, com o mapa de aplicação, ficam no banco local
+// (drift): a cabine lê o mesmo talhão e usa o mesmo mapa de prescrição.
 //
 // Controles: W/↑ acelera, S/↓ freia, A/D ou ←/→ volante, Q/E acelerador de mão,
-// R frente/ré, C câmera, P piloto automático. Ou o volante na tela, ou um volante USB.
+// R frente/ré, C câmera. Ou o volante na tela, ou um volante USB.
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -23,34 +21,18 @@ import 'package:flutter/services.dart';
 import 'package:agiso/agiso.dart';
 import 'package:agiso/banco.dart';
 import 'package:agiso/geo.dart';
-import 'package:agiso/rota.dart';
-import 'package:agiso/shapefile.dart';
 
 import 'controle_usb.dart';
 import 'fisica.dart';
 import 'painel.dart';
-import 'importar.dart';
-import 'piloto.dart';
-import 'ver_trabalho.dart';
 
 final agiso = Agiso();
 final tc = TcAutomatico(agiso); // desligado: aqui só guarda o mapa de aplicação
 late final bool ouvinte;
-String? shapefileInicial, prescricaoInicial, campoInicial;
-double fatorInicial = 1;
 Banco? banco;
 
 void main(List<String> args) {
   ouvinte = args.contains('--ouvinte');
-  String? valor(String nome) {
-    final i = args.indexOf(nome);
-    return i >= 0 && i + 1 < args.length ? args[i + 1] : null;
-  }
-
-  shapefileInicial = valor('--talhao');
-  prescricaoInicial = valor('--prescricao');
-  campoInicial = valor('--campo');
-  fatorInicial = double.tryParse(valor('--fator') ?? '') ?? 1;
   if (ouvinte) {
     agiso.iniciarOuvinte('vcan0');
   } else {
@@ -79,15 +61,10 @@ class _SimuladorState extends State<Simulador> {
   Timer? _envio, _autosalvar;
   List<bool>? _secoes;
   var _camera = Camera3D.atras;
-  var _chao = ModoChao.terra; // o que o chão plantado mostra no 3D
 
   // o volante: o teclado centraliza sozinho quando você solta; a mão (tela/USB), não
   bool _centralizar = false, _arrastando = false;
   double _usbAnterior = 0, _pedalTeclado = 0, _freioTeclado = 0;
-
-  // o piloto automático e a marcação de uma AB própria
-  late PilotoAutomatico _piloto;
-  Ponto? _pontoA;
 
   // o banco: o talhão ativo e o trabalho em andamento
   int? _talhaoId, _trabalhoId;
@@ -100,7 +77,6 @@ class _SimuladorState extends State<Simulador> {
   @override
   void initState() {
     super.initState();
-    _piloto = _pilotoDo(tc.talhao);
     agiso.eventos.listen((e) {
       if (e is Secoes) setState(() => _secoes = e.ligadas);
       if (e is Gps && ouvinte) setState(() {});
@@ -133,33 +109,11 @@ class _SimuladorState extends State<Simulador> {
     super.dispose();
   }
 
-  // A rota cobre o talhão com passadas paralelas à AB (a da maior borda, ou a marcada)
-  PilotoAutomatico _pilotoDo(Talhao t, {Ponto? a, Ponto? b}) {
-    final ab = t.linhaAB;
-    return PilotoAutomatico(Rota.planejar(t, a: a ?? ab.a, b: b ?? ab.b));
-  }
-
-  // O trator no começo da rota, alinhado com ela (dentro da cabeceira)
-  void _irParaOInicio() {
-    final p = _piloto.rota.pontos;
-    if (p.length < 2) return;
-    final rumo = math.atan2(p[1].e - p[0].e, p[1].n - p[0].n);
-    _trator.reposicionar(
-      p[0].e + math.sin(rumo) * FisicaTrator.antenaAFrenteDoEixo,
-      p[0].n + math.cos(rumo) * FisicaTrator.antenaAFrenteDoEixo,
-      rumo * 180 / math.pi,
-    );
-  }
-
   // --- banco: talhão e trabalho ---
 
-  // Ao abrir: o shapefile da linha de comando, ou o talhão ativo, ou o da demo
+  // Ao abrir: o talhão ativo, ou o da demo
   Future<void> _carregar() async {
     final b = banco!;
-    if (shapefileInicial != null) {
-      await _importar(shapefileInicial!);
-      return;
-    }
     var ativo = await b.talhaoAtivo();
     if (ativo == null) {
       final t = Talhao.padrao();
@@ -179,71 +133,10 @@ class _SimuladorState extends State<Simulador> {
     tc.distancia = aberto?.distanciaM ?? 0;
     _salvas = tc.mapa.plantadas;
     _salvoEm = DateTime.now();
-    _piloto = _pilotoDo(t);
-    _pontoA = null;
-    _irParaOInicio();
+    // o trator volta ao começo: ao sul do talhão, meia barra para dentro da borda oeste
+    final l = t.limites;
+    _trator.reposicionar(l.minE + Barra.largura / 2, l.minN - 14, 0);
     if (mounted) setState(() {});
-  }
-
-  Future<void> _importar(String caminho) async {
-    try {
-      final nome = caminho
-          .split('/')
-          .last
-          .replaceAll(RegExp(r'\.shp$', caseSensitive: false), '');
-      final contorno = Shapefile.ler(caminho);
-      final prescricao = prescricaoInicial == null
-          ? null
-          : Shapefile.ler(prescricaoInicial!);
-      final t = Talhao.deShapefiles(
-        nome: nome,
-        contorno: contorno,
-        prescricao: prescricao,
-        campoTaxa:
-            campoInicial ?? Talhao.campoDeTaxaProvavel(prescricao ?? contorno),
-        fator: fatorInicial,
-      );
-      await _salvar(encerrar: true);
-      final id = await banco!.salvarTalhao(
-        t,
-      ); // vira o ativo: a cabine passa a usá-lo
-      await _usarTalhao(id, t);
-      _aviso('Talhão "$nome": ${t.zonas.length} zonas, AB pela maior borda');
-    } on FormatException catch (e) {
-      _aviso('Não deu para ler o shapefile: ${e.message}');
-    } on Exception catch (e) {
-      _aviso('Não deu para ler o shapefile: $e');
-    }
-  }
-
-  // A janela de importar: contorno, prescrição (opcional), campo da taxa e unidade
-  Future<void> _escolherShapefile() async {
-    final t = await importarTalhao(context);
-    if (t == null) return;
-    await _salvar(encerrar: true);
-    final id = await banco!.salvarTalhao(
-      t,
-    ); // vira o ativo: a cabine passa a usá-lo
-    await _usarTalhao(id, t);
-    _aviso('Talhão "${t.nome}": ${t.zonas.length} zonas de prescrição');
-  }
-
-  // Um trabalho guardado, só para ver: mapa, relatório, exportar
-  Future<void> _abrirTrabalho(Trabalho j) async {
-    final b = banco!;
-    if (j.id == _trabalhoId) await _salvar(forcar: true);
-    final talhao = await b.talhao(j.talhaoId);
-    final mapa = await b.mapaDoTrabalho(j.id);
-    if (!mounted) return;
-    if (talhao == null || mapa == null) {
-      _aviso('Esse trabalho ainda não tem mapa de aplicação');
-      return;
-    }
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => VerTrabalho(trabalho: j, talhao: talhao, mapa: mapa),
-      ),
-    );
   }
 
   Future<void> _salvar({bool encerrar = false, bool forcar = false}) async {
@@ -308,20 +201,12 @@ class _SimuladorState extends State<Simulador> {
                     '${(j.distanciaM / 1000).toStringAsFixed(2)} km'
                     '${j.fim == null ? '  ·  em andamento' : ''}',
                   ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextButton(
-                        onPressed: () => _abrirTrabalho(j),
-                        child: const Text('ver'),
-                      ),
-                      if (j.id != _trabalhoId)
-                        TextButton(
+                  trailing: j.id == _trabalhoId
+                      ? null
+                      : TextButton(
                           onPressed: () => Navigator.pop(context, j.id),
                           child: const Text('continuar'),
                         ),
-                    ],
-                  ),
                 ),
             ],
           ),
@@ -360,44 +245,6 @@ class _SimuladorState extends State<Simulador> {
         _camera = Camera3D.values[(_camera.index + 1) % Camera3D.values.length],
   );
 
-  void _alternarPiloto() {
-    if (_piloto.ligado) {
-      _piloto.desligar();
-      _aviso('Piloto desengatado');
-    } else {
-      final motivo = _piloto.engatar(_trator);
-      _aviso(
-        motivo == null
-            ? 'Piloto engatado: ${_piloto.trecho}'
-            : 'Piloto: $motivo',
-      );
-    }
-    setState(() {});
-  }
-
-  void _marcarA() {
-    _pontoA = PilotoAutomatico.eixo(_trator);
-    _aviso('Ponto A marcado: ande em linha reta e marque o B');
-    setState(() {});
-  }
-
-  void _marcarB() {
-    final a = _pontoA;
-    if (a == null) return;
-    final b = PilotoAutomatico.eixo(_trator);
-    if (math.sqrt(math.pow(b.e - a.e, 2) + math.pow(b.n - a.n, 2)) < 10) {
-      _aviso('Ande pelo menos 10 m entre A e B');
-      return;
-    }
-    _piloto = _pilotoDo(tc.talhao, a: a, b: b);
-    _pontoA = null;
-    _aviso(
-      'Linha AB nova: rota refeita (${_piloto.rota.passadas} passadas, '
-      '${(_piloto.rota.comprimento / 1000).toStringAsFixed(1)} km)',
-    );
-    setState(() {});
-  }
-
   // Teclas de um toque: a borda "acabou de apertar", lida a cada quadro junto com as de
   // segurar (não depende de qual widget tem o foco). O efeito vem depois do quadro.
   var _antes = <LogicalKeyboardKey>{};
@@ -414,15 +261,6 @@ class _SimuladorState extends State<Simulador> {
       });
     }
     if (apertou(LogicalKeyboardKey.keyC)) depois(_proximaCamera);
-    if (apertou(LogicalKeyboardKey.keyM)) {
-      depois(
-        () => setState(
-          () => _chao =
-              ModoChao.values[(_chao.index + 1) % ModoChao.values.length],
-        ),
-      );
-    }
-    if (apertou(LogicalKeyboardKey.keyP)) depois(_alternarPiloto);
     _antes = Set.of(teclas);
   }
 
@@ -435,17 +273,7 @@ class _SimuladorState extends State<Simulador> {
       );
   }
 
-  // O operador pegou no volante: o piloto solta (como o sensor de torque de verdade)
-  void _maoNoVolante() {
-    _centralizar = false;
-    if (!_piloto.ligado) return;
-    _piloto.desligar();
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _aviso('Piloto desengatado: volante'),
-    );
-  }
-
-  // A cada quadro: lê os comandos, o piloto conduz e a física anda
+  // A cada quadro: lê os comandos e a física anda
   PoseTrator? _dirigir(double dt) {
     if (ouvinte) return _seguirGps(dt);
     final t = _trator;
@@ -458,10 +286,9 @@ class _SimuladorState extends State<Simulador> {
     final esquerda = tem(LogicalKeyboardKey.arrowLeft, LogicalKeyboardKey.keyA);
     final direita = tem(LogicalKeyboardKey.arrowRight, LogicalKeyboardKey.keyD);
     if (esquerda != direita) {
-      _maoNoVolante();
       t.volante += (direita ? 1 : -1) * 540 * dt;
       _centralizar = true;
-    } else if (_centralizar && !_arrastando && !_piloto.ligado) {
+    } else if (_centralizar && !_arrastando) {
       final volta = 400 * dt;
       t.volante = t.volante.abs() <= volta
           ? 0
@@ -470,16 +297,8 @@ class _SimuladorState extends State<Simulador> {
     // volante USB: só manda quando mexe (um gamepad parado não trava o teclado)
     if (_usb.conectado && (_usb.volante - _usbAnterior).abs() > 0.002) {
       _usbAnterior = _usb.volante;
-      _maoNoVolante();
+      _centralizar = false;
       t.volante = _usb.volante * 360 * FisicaTrator.voltasDoVolante;
-    }
-    // o motor do piloto gira o volante sozinho
-    final ligadoAntes = _piloto.ligado;
-    _piloto.conduzir(t, dt);
-    if (ligadoAntes && _piloto.concluido) {
-      WidgetsBinding.instance.addPostFrameCallback(
-        (_) => _aviso('Rota concluída: talhão coberto'),
-      );
     }
     final limite = 360 * FisicaTrator.voltasDoVolante;
     t.volante = t.volante.clamp(-limite, limite);
@@ -498,14 +317,6 @@ class _SimuladorState extends State<Simulador> {
     );
     t.pedal = math.max(_pedalTeclado, _usb.acelerador);
     t.freio = math.max(_freioTeclado, _usb.freio);
-    // o piloto segura a velocidade nas curvas (e já vem freando antes delas)
-    final maxima = _piloto.limiteDeVelocidade;
-    if (maxima != null && t.velocidade > maxima) {
-      t.freio = math.max(
-        t.freio,
-        ((t.velocidade - maxima) * 2).clamp(0.0, 1.0),
-      );
-    }
     // acelerador de mão: Q tira, E põe
     if (teclas.contains(LogicalKeyboardKey.keyE)) {
       t.aceleradorDeMao = math.min(1, t.aceleradorDeMao + dt * 0.5);
@@ -554,14 +365,6 @@ class _SimuladorState extends State<Simulador> {
                 tc: tc,
                 secoes: _secoes,
                 camera: _camera,
-                chao: _chao,
-                guia: ouvinte
-                    ? null
-                    : (
-                        rota: _piloto.rota.pontos,
-                        progresso: _piloto.indice,
-                        ligado: _piloto.ligado,
-                      ),
               ),
             ),
             Positioned(
@@ -581,33 +384,12 @@ class _SimuladorState extends State<Simulador> {
                       '${(tc.mapa.sementes / 1000).toStringAsFixed(1)} mil sementes',
                   if (_secoes != null)
                     'seções  ${_secoes!.map((l) => l ? '■' : '□').join(' ')}',
-                  if (!ouvinte)
-                    'rota: ${_piloto.rota.passadas} passadas + cabeceira  ·  '
-                        '${(_piloto.rota.comprimento / 1000).toStringAsFixed(1)} km',
                   if (_trabalhoId != null)
                     'trabalho #$_trabalhoId  ·  salvo há ${salvo ?? 0} s',
                   if (!ouvinte && _usb.conectado) 'controle USB conectado',
                 ],
               ),
             ),
-            if (!ouvinte)
-              Positioned(
-                top: 16,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: BarraDeLuz(
-                    estado: _piloto.ligado
-                        ? 'PILOTO  ·  ${_piloto.trecho}'
-                        : _piloto.concluido
-                        ? 'rota concluída'
-                        : _pontoA != null
-                        ? 'marque o ponto B'
-                        : 'piloto desengatado (P)',
-                    erro: _piloto.ligado ? _piloto.erro : null,
-                  ),
-                ),
-              ),
             Positioned(
               right: 16,
               top: 16,
@@ -633,23 +415,6 @@ class _SimuladorState extends State<Simulador> {
                     onSelectionChanged: (s) =>
                         setState(() => _camera = s.first),
                   ),
-                  const SizedBox(height: 6),
-                  // o chão plantado: terra, mapa de calor da taxa, ou prescrito x aplicado (M)
-                  SegmentedButton<ModoChao>(
-                    segments: const [
-                      ButtonSegment(
-                        value: ModoChao.terra,
-                        label: Text('terra'),
-                      ),
-                      ButtonSegment(value: ModoChao.taxa, label: Text('taxa')),
-                      ButtonSegment(
-                        value: ModoChao.comparacao,
-                        label: Text('prescrito × aplicado'),
-                      ),
-                    ],
-                    selected: {_chao},
-                    onSelectionChanged: (s) => setState(() => _chao = s.first),
-                  ),
                   if (!ouvinte) ...[
                     const SizedBox(height: 10),
                     Wrap(
@@ -657,38 +422,6 @@ class _SimuladorState extends State<Simulador> {
                       runSpacing: 8,
                       alignment: WrapAlignment.end,
                       children: [
-                        FilledButton.icon(
-                          onPressed: _alternarPiloto,
-                          icon: Icon(
-                            _piloto.ligado
-                                ? Icons.pan_tool
-                                : Icons.assistant_navigation,
-                          ),
-                          label: Text(
-                            _piloto.ligado ? 'soltar piloto (P)' : 'piloto (P)',
-                          ),
-                        ),
-                        FilledButton.tonal(
-                          onPressed: _marcarA,
-                          child: const Text('marcar A'),
-                        ),
-                        FilledButton.tonal(
-                          onPressed: _pontoA == null ? null : _marcarB,
-                          child: const Text('marcar B'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      alignment: WrapAlignment.end,
-                      children: [
-                        FilledButton.tonalIcon(
-                          onPressed: _escolherShapefile,
-                          icon: const Icon(Icons.map),
-                          label: const Text('importar shapefile'),
-                        ),
                         FilledButton.tonal(
                           onPressed: _novoTrabalho,
                           child: const Text('novo trabalho'),
@@ -725,7 +458,7 @@ class _SimuladorState extends State<Simulador> {
           angulo: t.volante,
           aoGirar: (graus, {required soltou}) {
             _arrastando = !soltou;
-            if (graus != 0) _maoNoVolante();
+            if (graus != 0) _centralizar = false;
             t.volante = (t.volante + graus).clamp(
               -360 * FisicaTrator.voltasDoVolante,
               360 * FisicaTrator.voltasDoVolante,
@@ -770,7 +503,7 @@ class _SimuladorState extends State<Simulador> {
         bottom: 4,
         child: Center(
           child: Text(
-            'W/↑ acelera · S/↓ freia · A/D ←/→ volante · Q/E acelerador de mão · R frente/ré · C câmera · M chão · P piloto',
+            'W/↑ acelera · S/↓ freia · A/D ←/→ volante · Q/E acelerador de mão · R frente/ré · C câmera',
             style: TextStyle(
               color: Colors.white,
               fontSize: 13,

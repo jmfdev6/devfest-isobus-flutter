@@ -8,7 +8,7 @@ O [`demo.sh`](https://github.com/jmfdev6/devfest-isobus-flutter/blob/main/demo.s
 | `./demo.sh iniciar [opções]` | rede, cabine, plantadeira e simulador, na ordem certa |
 | `./demo.sh parar` | mata os processos guardados em `.demo/*.pid` e destrói a bolha |
 | `./demo.sh status` | o que está rodando e em qual rede |
-| `./demo.sh testar [--rapido]` | análise estática, autotestes e os testes com a rede CAN |
+| `./demo.sh testar` | análise estática, autotestes e os testes com a rede CAN |
 | `./demo.sh rede` | um shell dentro da rede da demo (útil na bolha) |
 
 ## iniciar
@@ -16,10 +16,6 @@ O [`demo.sh`](https://github.com/jmfdev6/devfest-isobus-flutter/blob/main/demo.s
 ```bash
 ./demo.sh iniciar                     # você dirige
 ./demo.sh iniciar --automatico        # o ./build/trator dirige; o simulador só assiste (--ouvinte)
-./demo.sh iniciar --sem-tc            # a cabine abre com o TC automático desligado
-./demo.sh iniciar --talhao exemplos/talhao_sinop.shp
-./demo.sh iniciar --talhao exemplos/contorno_sinop_utm.shp \
-    --prescricao exemplos/prescricao_sinop.shp --campo DOSE_MIL --fator 1000
 ```
 
 Opções que o `demo.sh` não conhece vão para o simulador. A sequência:
@@ -32,7 +28,7 @@ sequenceDiagram
     participant P as plantadeira (0x80)
     participant S as simulador / trator
     D->>R: usa a vcan0 ou cria a bolha
-    D->>C: cabine --tc-auto
+    D->>C: cabine (TC automático ligado)
     Note over D: espera 4 s
     D->>P: build/seeder --interface vcan0
     P->>C: object pool (VT) e DDOP (TC)
@@ -51,28 +47,20 @@ Registros e PIDs ficam em `.demo/` (`cabine.log`, `plantadeira.log`, `simulador.
 
 | App | Opção | Efeito |
 |---|---|---|
-| cabine | `--tc-auto` | TC automático (GEO + SEC) já ligado |
 | cabine | `--talhao-demo` | usa o talhão da demo, sem ler o banco |
 | simulador | `--ouvinte` | não é o trator: só acompanha o GPS da rede |
-| simulador | `--talhao C.shp` | importa um shapefile ao abrir |
-| simulador | `--prescricao P.shp` | prescrição em arquivo separado |
-| simulador | `--campo NOME` | o campo do `.dbf` com a taxa |
-| simulador | `--fator F` | multiplica o campo para virar sementes/ha (mil/ha = 1000; sementes/m² = 10000) |
 
 ## testar
 
 ```bash
 ./demo.sh testar            # tudo (~3 min)
-./demo.sh testar --rapido   # pula o autoteste do piloto
 ```
 
 | Etapa | Comando | Confere |
 |---|---|---|
 | análise | `dart analyze` (pacote `agiso`) | sem avisos |
-| shapefile | `dart run bin/shapefile.dart` | leitura, UTM → graus, prescrição separada, exportação e releitura |
 | banco | `dart run bin/banco.dart verificar` | ida e volta num banco temporário, incluindo 40 células sobrepostas |
 | física | `dart --enable-asserts lib/fisica.dart` | aceleração, freio, raio de giro, ré |
-| piloto | `dart --enable-asserts lib/piloto.dart` | a rota inteira nos dois talhões sem sair do contorno |
 | TC | `scripts/teste_tc.sh` | DDOP, assinatura, taxa alvo, controle de seções, depósito |
 | GEO/SEC | `scripts/teste_geo.sh` | GPS NMEA 2000, taxa por zona, corte na cabeceira e na sobreposição |
 
@@ -90,7 +78,7 @@ DART| SEC seções pedidas ■■■■■□
 
 ## CI
 
-O [`ci.yml`](https://github.com/jmfdev6/devfest-isobus-flutter/blob/main/.github/workflows/ci.yml) roda em cada push e PR: checkout com submódulos, `ninja-build` e `libgtk-3-dev`, Flutter 3.47.9, `./demo.sh preparar`, `dart analyze` e `flutter analyze` nos três pacotes Flutter, e os autotestes de shapefile, banco, física e piloto. Os testes com a rede CAN ficam de fora: os *runners* do GitHub não têm `vcan`.
+O [`ci.yml`](https://github.com/jmfdev6/devfest-isobus-flutter/blob/main/.github/workflows/ci.yml) roda em cada push e PR: checkout com submódulos, `ninja-build` e `libgtk-3-dev`, Flutter 3.47.9, `./demo.sh preparar`, `dart analyze` e `flutter analyze` nos três pacotes Flutter, e os autotestes de banco e física. Os testes com a rede CAN ficam de fora: os *runners* do GitHub não têm `vcan`.
 
 O site desta documentação é publicado pelo [`docs.yml`](https://github.com/jmfdev6/devfest-isobus-flutter/blob/main/.github/workflows/docs.yml) a cada push na `main` que mexa em `docs/` ou no `mkdocs.yml`. Para ver localmente:
 

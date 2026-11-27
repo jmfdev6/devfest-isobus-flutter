@@ -6,10 +6,10 @@
 flowchart LR
     subgraph Flutter["apps/ (Flutter)"]
         CAB[cabine<br/>VT + TC + mapa]
-        SIM[simulador<br/>3D + física + piloto]
+        SIM[simulador<br/>3D + física]
     end
     subgraph Dart["pacotes/ (Dart)"]
-        AG[agiso<br/>FFI, geo, rota,<br/>shapefile, banco]
+        AG[agiso<br/>FFI, geo<br/>TC automático, banco]
         CENA[cena<br/>modelos 3D, mapa 2D]
     end
     subgraph Nativo["nativo/ (C++)"]
@@ -37,10 +37,10 @@ A regra principal: **só a ponte conhece a AgIsoStack++.** O Dart vê um contrat
 | `nativo/trator/` | C++17 | trator automático (GPS NMEA 2000, `0xFE49`, EEC1) num talhão fixo |
 | `nativo/plantadeira/` | C++17 | cópia do *seeder example* da AgIsoStack++: VT *client*, TC *client*, 6 seções |
 | `nativo/teste/` | C | usa a ponte sem Dart (prova que o contrato basta) |
-| `pacotes/agiso/` | Dart puro | classe `Agiso`, talhão, TC automático, rota, shapefile, relatório, banco; a cabine em modo texto |
+| `pacotes/agiso/` | Dart puro | classe `Agiso`, talhão, TC automático, banco; a cabine em modo texto |
 | `pacotes/cena/` | Flutter | modelos `.glb`, cenas do flutter_scene, mapa 2D e legenda |
-| `apps/cabine/` | Flutter | o terminal: desenha o VT, painel do TC, plantadeira 3D, mapa ao vivo |
-| `apps/simulador/` | Flutter | o trator dirigível, piloto automático, importação de shapefile, trabalhos |
+| `apps/cabine/` | Flutter | o terminal: desenha o VT; o TC automático trabalha por trás |
+| `apps/simulador/` | Flutter | o trator dirigível e os trabalhos |
 
 ## Processos na demo
 
@@ -95,7 +95,7 @@ flowchart LR
     MAPA --> DB[(banco)]
 ```
 
-O mapa de aplicação é preenchido pelo **estado real** que a plantadeira informa (DDI 161), não pelo que o TC pediu. Se o operador desliga um switch, o mapa mostra a falha. Detalhes em [Task Controller](tc.md) e [Mapa de aplicação](mapa-aplicacao.md).
+O mapa de cobertura é preenchido pelo **estado real** que a plantadeira informa (DDI 161), não pelo que o TC pediu. Se o operador desliga um switch, a falha fica sem semente. Detalhes em [Task Controller](tc.md) e [Mapa de cobertura](mapa-aplicacao.md).
 
 ## Leitura sugerida do código
 

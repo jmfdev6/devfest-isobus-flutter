@@ -1,4 +1,4 @@
-// cena.dart — os modelos 3D da demo (flutter_scene) e a vista da plantadeira da cabine
+// cena.dart — os modelos 3D da demo (flutter_scene): o trator e a plantadeira do simulador
 //
 // Os modelos (.glb) estão em assets/. A plantadeira mostra as seções como o VT mostra
 // os funis: o pote de cada linha fica verde (plantando) ou vermelho (cortada), e as
@@ -7,12 +7,10 @@ library;
 
 import 'dart:math' as math;
 
-import 'package:flutter/widgets.dart';
 import 'package:flutter_scene/scene.dart';
 import 'package:agiso/geo.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
-export 'mapa.dart';
 export 'talhao.dart';
 
 final _verde = PhysicallyBasedMaterial()
@@ -214,67 +212,5 @@ class Trator3D {
         vm.Quaternion.axisAngle(vm.Vector3(1, 0, 0), metros / 0.58);
     _traseiras?.rotation =
         _baseT * vm.Quaternion.axisAngle(vm.Vector3(1, 0, 0), metros / 0.77);
-  }
-}
-
-/// A plantadeira em 3D ao lado do VT, mostrando ao vivo as seções que o TC informa.
-class VistaPlantadeira extends StatefulWidget {
-  const VistaPlantadeira({super.key, required this.secoes});
-
-  /// O estado REAL das seções (DDI 161), ou null antes de o implemento conectar.
-  final List<bool>? secoes;
-
-  @override
-  State<VistaPlantadeira> createState() => _VistaPlantadeiraState();
-}
-
-class _VistaPlantadeiraState extends State<VistaPlantadeira> {
-  final _cena = Scene();
-  Plantadeira3D? _plantadeira;
-  Object? _erro;
-
-  @override
-  void initState() {
-    super.initState();
-    Plantadeira3D.carregar().then(
-      (p) {
-        _cena.add(p.no);
-        if (widget.secoes != null) p.mostrarSecoes(widget.secoes!);
-        if (mounted) setState(() => _plantadeira = p);
-      },
-      onError: (Object e) {
-        if (mounted) setState(() => _erro = e);
-      },
-    );
-  }
-
-  @override
-  void didUpdateWidget(VistaPlantadeira antigo) {
-    super.didUpdateWidget(antigo);
-    if (widget.secoes != null) _plantadeira?.mostrarSecoes(widget.secoes!);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_erro != null) return Center(child: Text('3D indisponível: $_erro'));
-    final p = _plantadeira;
-    if (p == null) return const SizedBox.expand();
-    return SceneView(
-      _cena,
-      cameraBuilder: (passado) {
-        p.animar(passado.inMicroseconds / 1e6);
-        // de trás e de cima, girando devagar para a plateia ver as linhas
-        final a = math.pi + 0.5 * math.sin(passado.inMilliseconds / 6000);
-        return PerspectiveCamera(
-          position: vm.Vector3(
-            math.sin(a) * 6.5,
-            3,
-            p.zLinhas + math.cos(a) * 6.5,
-          ),
-          target: vm.Vector3(0, 0.5, p.zLinhas),
-          fovRadiansY: 50 * vm.degrees2Radians,
-        );
-      },
-    );
   }
 }

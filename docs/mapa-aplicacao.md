@@ -1,6 +1,6 @@
-# Mapa de aplicação
+# Mapa de cobertura
 
-O mapa de aplicação (*as-applied*) registra **onde e quanta semente caiu**. Um único buffer serve a quatro consumidores: a cobertura do TC-SEC, o mapa 2D da cabine, a textura do chão no 3D e o que vai para o banco.
+O mapa de aplicação (*as-applied*) registra **onde e quanta semente caiu**. Um único buffer serve ao TC-SEC (o que já foi plantado), à textura do chão no 3D e ao que vai para o banco.
 
 ## A grade
 
@@ -31,55 +31,12 @@ A janela de **3 s** existe porque a mesma passada toca a mesma célula várias v
 
 Totais mantidos a cada marcação: `plantadas`, `sobrepostasN`, `hectares`, `sementes` (a sobreposição conta semente em dobro).
 
-## Prescrito × aplicado
+## Onde é usado
 
-[`relatorio.dart`](https://github.com/jmfdev6/devfest-isobus-flutter/blob/main/pacotes/agiso/lib/relatorio.dart) amostra a prescrição no centro de cada célula da **mesma grade** (`gradeDePrescricao`) e classifica:
-
-| Classe | Regra (nesta ordem) | Cor |
-|---|---|---|
-| fora | prescrito = 0 (fora do talhão) | — |
-| não aplicado | aplicado = 0 | cinza-claro |
-| sobreposto | `sobrepostas[i] = 1` | roxo |
-| abaixo | (aplicado − prescrito) / prescrito < −5% | laranja |
-| acima | > +5% | vermelho |
-| na taxa | dentro de ±5% | verde |
-
-A tolerância é um parâmetro (`tolerancia: 0.05`).
-
-### Relatório
-
-`Relatorio.de(mapa, prescricao)` soma, **por taxa prescrita** e no total, só dentro do talhão:
-
-| Coluna | |
+| Onde | Para quê |
 |---|---|
-| área | ha prescritos com essa taxa |
-| aplicada | ha com alguma semente |
-| na taxa / abaixo / acima / sobreposta | ha em cada classe |
-| sementes previstas | Σ prescrito × área da célula |
-| sementes aplicadas | Σ aplicado × área (em dobro nas sobrepostas) |
+| TC-SEC | `coberto(e, n)`: a seção que passaria sobre célula já plantada é cortada |
+| chão 3D do simulador | a mesma grade como textura: cada célula plantada vira terra revolvida (veja [3D](3d.md#o-chao-uma-textura)) |
+| banco | o trabalho guarda a grade, para continuar depois (veja [Banco](banco.md)) |
 
-`emTexto()` gera a tabela para o terminal; a cabine e o simulador mostram a mesma tabela num diálogo.
-
-## Exportar como shapefile
-
-`exportarAplicacao(...)` grava polígonos em **WGS84**. Para não gerar um polígono por célula, cada linha da grade é varrida e as células vizinhas com a mesma chave `(aplicado, prescrito, sobreposta)` viram um retângulo só.
-
-| Campo | Tipo | Conteúdo |
-|---|---|---|
-| `TAXA_APL` | N | sementes/ha aplicadas |
-| `TAXA_PRE` | N | sementes/ha prescritas (vazio fora das zonas) |
-| `DIF_PCT` | N | diferença percentual |
-| `SOBREP` | N | 1 = sobreposto |
-| `AREA_M2` | N | área do polígono |
-
-Abre no QGIS ou em softwares agrícolas. O `bin/shapefile.dart` confere a exportação relendo o arquivo gravado.
-
-## Visualização
-
-| Onde | Como |
-|---|---|
-| cabine (ao vivo) | [`pacotes/cena/lib/mapa.dart`](https://github.com/jmfdev6/devfest-isobus-flutter/blob/main/pacotes/cena/lib/mapa.dart): a grade vira uma imagem refeita no máximo **1 vez por segundo**; contorno, trator e barra são desenhados por cima. Modos *aplicado*, *prescrito × aplicado* e *prescrição*, com legenda. |
-| simulador, "ver trabalho" | o mesmo widget, para trabalhos guardados |
-| chão 3D | a mesma grade como textura (veja [3D](3d.md#o-chao-uma-textura)); tecla **M** alterna terra / taxa / prescrito × aplicado |
-
-Escala de cores da taxa (`corDaTaxa`): interpolação do amarelo (10 mil/ha ou menos) ao verde-escuro (22 mil/ha ou mais). A prescrição na grade é calculada num *isolate*, fora da thread da interface.
+A cobertura da cabine fica na memória: para replantar o talhão do zero, reinicie a demo (`./demo.sh iniciar`).

@@ -11,8 +11,6 @@ dependencies:
     sdk: flutter
   agiso:
     path: ../../pacotes/agiso
-  cena:
-    path: ../../pacotes/cena
 
 dev_dependencies:
   flutter_test:

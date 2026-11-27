@@ -9,7 +9,6 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'agiso.dart';
-import 'shapefile.dart';
 
 /// Um ponto em metros: leste e norte a partir da origem do talhão.
 typedef Ponto = ({double e, double n});
@@ -27,7 +26,7 @@ class Zona {
 }
 
 /// O talhão: o contorno e o mapa de prescrição (zonas com taxa), em metros a partir
-/// do canto sudoeste. Vem de um shapefile, do banco, ou é o retângulo padrão da demo.
+/// do canto sudoeste. Vem do banco, ou é o retângulo padrão da demo.
 class Talhao {
   Talhao._(
     this.nome,
@@ -113,84 +112,6 @@ class Talhao {
     );
   }
 
-  /// O campo de taxa que o nome sugere (TAXA, RATE, DOSE...), para pré-selecionar na tela.
-  static String? campoDeTaxaProvavel(Shapefile shp) {
-    for (final c in shp.camposNumericos) {
-      if (RegExp(
-        r'^(taxa|rate|tgt|target|dose|sem|pop|tx)',
-        caseSensitive: false,
-      ).hasMatch(c.nome)) {
-        return c.nome;
-      }
-    }
-    return null;
-  }
-
-  /// De shapefiles de polígonos (já em graus: o leitor desfaz a UTM).
-  ///
-  /// [contorno]: os polígonos do talhão. [prescricao]: as zonas com taxa (podem passar
-  /// da divisa: o contorno corta); sem ela, as zonas vêm do próprio contorno, se ele
-  /// tiver [campoTaxa]. [fator] converte a unidade do campo em sementes/ha (mil
-  /// sementes/ha = 1000; sementes/m² = 10000). Sem campo: taxa única, [taxaPadrao].
-  factory Talhao.deShapefiles({
-    required String nome,
-    required Shapefile contorno,
-    Shapefile? prescricao,
-    String? campoTaxa,
-    double fator = 1,
-    int taxaPadrao = 16000,
-  }) {
-    List<Feicao> poligonos(Shapefile s) =>
-        s.feicoes.where((f) => f.poligono).toList();
-    final borda = poligonos(contorno);
-    if (borda.isEmpty)
-      throw const FormatException('o shapefile do contorno não tem polígonos');
-    final fonte = prescricao ?? (campoTaxa == null ? null : contorno);
-    if (prescricao != null && poligonos(prescricao).isEmpty) {
-      throw const FormatException(
-        'o shapefile da prescrição não tem polígonos',
-      );
-    }
-    if (fonte != null &&
-        campoTaxa != null &&
-        !fonte.camposNumericos.any((c) => c.nome == campoTaxa)) {
-      throw FormatException(
-        'o campo "$campoTaxa" não existe ou não é numérico',
-      );
-    }
-    List<List<PontoGeo>> geo(Feicao f) => [
-      for (final a in f.aneis) [for (final p in a) (lon: p.x, lat: p.y)],
-    ];
-    return Talhao.deGeo(
-      nome: nome,
-      contorno: [for (final f in borda) geo(f)],
-      zonas: fonte == null || campoTaxa == null
-          ? const []
-          : [
-              for (final f in poligonos(fonte))
-                if (f.atributos[campoTaxa] is num &&
-                    (f.atributos[campoTaxa] as num) > 0)
-                  (
-                    aneis: geo(f),
-                    taxa: ((f.atributos[campoTaxa] as num) * fator).round(),
-                  ),
-            ],
-      taxaPadrao: taxaPadrao,
-    );
-  }
-
-  /// Um shapefile só: o campo de taxa é adivinhado pelo nome (veja [deShapefiles]).
-  factory Talhao.deShapefile(
-    Shapefile shp, {
-    required String nome,
-    int taxaPadrao = 16000,
-  }) => Talhao.deShapefiles(
-    nome: nome,
-    contorno: shp,
-    campoTaxa: campoDeTaxaProvavel(shp),
-    taxaPadrao: taxaPadrao,
-  );
-
   /// Graus -> metros (leste, norte) a partir da origem.
   Ponto local(double lat, double lon) => (
     e: (lon - lon0) * _metrosPorGrau * math.cos(lat0 * math.pi / 180),
@@ -240,66 +161,6 @@ class Talhao {
       minN: todos.map((p) => p.n).reduce(math.min),
       maxE: todos.map((p) => p.e).reduce(math.max),
       maxN: todos.map((p) => p.n).reduce(math.max),
-    );
-  }
-
-  /// A linha AB padrão: a maior borda reta da divisa do talhão, meia barra para dentro
-  /// (assim a primeira passada deixa a borda da plantadeira em cima da divisa).
-  ({Ponto a, Ponto b}) get linhaAB {
-    // bordas colineares somam (uma borda longa cortada pelas zonas vira uma só);
-    // chave = ângulo (graus, 0-180) e afastamento da reta à origem (metros)
-    final grupos =
-        <
-          (int, int),
-          ({double soma, double ini, double fim, double ang, double c})
-        >{};
-    for (final p in contorno) {
-      for (final anel in p) {
-        for (var i = 0; i < anel.length; i++) {
-          final u = anel[i], v = anel[(i + 1) % anel.length];
-          final d = math.sqrt(math.pow(v.e - u.e, 2) + math.pow(v.n - u.n, 2));
-          if (d < 0.5) continue;
-          // só a divisa: uma borda interna (entre duas zonas) tem talhão dos dois lados
-          final me = (u.e + v.e) / 2, mn = (u.n + v.n) / 2;
-          final ne = (v.n - u.n) / d, nn = -(v.e - u.e) / d;
-          if (dentro(me + ne * 0.5, mn + nn * 0.5) &&
-              dentro(me - ne * 0.5, mn - nn * 0.5))
-            continue;
-          var ang = math.atan2(v.n - u.n, v.e - u.e);
-          if (ang < 0) ang += math.pi;
-          if (ang >= math.pi) ang -= math.pi;
-          final c =
-              -math.sin(ang) * u.e + math.cos(ang) * u.n; // afastamento da reta
-          final chave = ((ang * 180 / math.pi).round() % 180, c.round());
-          // o trecho coberto, medido ao longo da direção da reta
-          final pu = math.cos(ang) * u.e + math.sin(ang) * u.n;
-          final pv = math.cos(ang) * v.e + math.sin(ang) * v.n;
-          final g = grupos[chave];
-          grupos[chave] = (
-            soma: (g?.soma ?? 0) + d,
-            ini: math.min(g?.ini ?? double.infinity, math.min(pu, pv)),
-            fim: math.max(g?.fim ?? -double.infinity, math.max(pu, pv)),
-            ang: ang,
-            c: c,
-          );
-        }
-      }
-    }
-    if (grupos.isEmpty) return (a: (e: 0.0, n: 0.0), b: (e: 0.0, n: 1.0));
-    final g = grupos.values.reduce((x, y) => x.soma >= y.soma ? x : y);
-    // de volta para (e, n): ponto = direção * t + normal * c
-    final dir = (e: math.cos(g.ang), n: math.sin(g.ang));
-    final nor = (e: -math.sin(g.ang), n: math.cos(g.ang));
-    Ponto em(double t) =>
-        (e: dir.e * t + nor.e * g.c, n: dir.n * t + nor.n * g.c);
-    final a = em(g.ini), b = em(g.fim);
-    // para que lado é "dentro": testa um ponto um pouco ao lado do meio da borda
-    final meio = (e: (a.e + b.e) / 2, n: (a.n + b.n) / 2);
-    final sinal = dentro(meio.e + nor.e, meio.n + nor.n) ? 1.0 : -1.0;
-    final desloca = sinal * Barra.largura / 2;
-    return (
-      a: (e: a.e + nor.e * desloca, n: a.n + nor.n * desloca),
-      b: (e: b.e + nor.e * desloca, n: b.n + nor.n * desloca),
     );
   }
 }

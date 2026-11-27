@@ -6,7 +6,6 @@ import 'dart:io';
 
 import 'package:agiso/banco.dart';
 import 'package:agiso/geo.dart';
-import 'package:agiso/shapefile.dart';
 
 Future<void> main(List<String> args) async {
   if (args.isNotEmpty && args.first == 'verificar') return verificar();
@@ -29,23 +28,20 @@ Future<void> verificar() async {
   final pasta = Directory.systemTemp.createTempSync('banco');
   final banco = Banco.abrir('${pasta.path}/teste.sqlite');
   try {
-    final t = Talhao.deShapefile(
-      Shapefile.ler('../../exemplos/talhao_sinop.shp'),
-      nome: 'teste',
-    );
+    final t = Talhao.padrao();
     final id = await banco.salvarTalhao(t);
     final lido = (await banco.talhaoAtivo())!;
     // o talhão volta igual: mesma origem, mesmas zonas, mesma taxa num ponto conhecido
-    final ab = lido.talhao.linhaAB;
-    final meio = (e: (ab.a.e + ab.b.e) / 2, n: (ab.a.n + ab.b.n) / 2);
+    const meio = (e: 30.0, n: 60.0); // o meio do talhão, na zona de 20 mil
     check(
       lido.id == id && (lido.talhao.lat0 - t.lat0).abs() < 1e-12,
       'talhão ativo',
     );
     check(lido.talhao.zonas.length == 3, 'zonas');
     check(
-      lido.talhao.taxa(meio.e, meio.n) == t.taxa(meio.e, meio.n),
-      'taxa no meio da AB',
+      lido.talhao.taxa(meio.e, meio.n) == t.taxa(meio.e, meio.n) &&
+          t.taxa(meio.e, meio.n) == 20000,
+      'taxa no meio do talhão',
     );
 
     // um trabalho com um pedaço plantado a 20 mil: grava, relê, e as contas batem
