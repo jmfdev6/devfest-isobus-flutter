@@ -77,7 +77,7 @@ abrir_rede() {
     PREFIXO=()
     echo "vcan0" >"$DEMO/rede"
   else
-    ./scripts/bolha.sh criar >/dev/null || erro "não deu para criar a rede (veja 'Sem sudo?' no README)"
+    ./scripts/bolha.sh criar >/dev/null || erro "não deu para criar a rede (veja 'Se der errado' no README)"
     PREFIXO=("$RAIZ/scripts/bolha.sh" entrar)
     echo "bolha" >"$DEMO/rede"
   fi
