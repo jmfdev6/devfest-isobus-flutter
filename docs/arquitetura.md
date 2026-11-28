@@ -9,7 +9,7 @@ flowchart LR
         SIM[simulador<br/>3D + física]
     end
     subgraph Dart["pacotes/ (Dart)"]
-        AG[agiso<br/>FFI, geo<br/>TC automático, banco]
+        AG[agiso<br/>FFI, geo<br/>TC automático]
         CENA[cena<br/>modelos 3D, mapa 2D]
     end
     subgraph Nativo["nativo/ (C++)"]
@@ -18,15 +18,12 @@ flowchart LR
     end
     CAB --> AG
     SIM --> AG
-    CAB --> CENA
     SIM --> CENA
     AG -- "dart:ffi" --> PONTE
     PONTE --> STACK
     STACK -- SocketCAN --> VCAN[(vcan0)]
     TRATOR[build/trator] --> VCAN
     SEEDER[build/seeder<br/>plantadeira] --> VCAN
-    DB[(agro.sqlite)]
-    AG -. drift .-> DB
 ```
 
 A regra principal: **só a ponte conhece a AgIsoStack++.** O Dart vê um contrato C pequeno ([`agiso.h`](ponte.md)) com funções que recebem e devolvem tipos simples (inteiros, `double`, *buffers*). Assim o FFI fica trivial e a pilha pode mudar sem tocar no Dart.
@@ -37,10 +34,10 @@ A regra principal: **só a ponte conhece a AgIsoStack++.** O Dart vê um contrat
 | `nativo/trator/` | C++17 | trator automático (GPS NMEA 2000, `0xFE49`, EEC1) num talhão fixo |
 | `nativo/plantadeira/` | C++17 | cópia do *seeder example* da AgIsoStack++: VT *client*, TC *client*, 6 seções |
 | `nativo/teste/` | C | usa a ponte sem Dart (prova que o contrato basta) |
-| `pacotes/agiso/` | Dart puro | classe `Agiso`, talhão, TC automático, banco; a cabine em modo texto |
-| `pacotes/cena/` | Flutter | modelos `.glb`, cenas do flutter_scene, mapa 2D e legenda |
+| `pacotes/agiso/` | Dart puro | classe `Agiso`, talhão, TC automático; a cabine em modo texto |
+| `pacotes/cena/` | Flutter | modelos `.glb` e a cena 3D do simulador (flutter_scene) |
 | `apps/cabine/` | Flutter | o terminal: desenha o VT; o TC automático trabalha por trás |
-| `apps/simulador/` | Flutter | o trator dirigível e os trabalhos |
+| `apps/simulador/` | Flutter | o trator dirigível em 3D |
 
 ## Processos na demo
 
@@ -91,8 +88,7 @@ flowchart LR
     TC --> PL[plantadeira]
     PL -- "DDI 161 (estado real)" --> MAPA[MapaAplicacao]
     MAPA --> SEC
-    MAPA --> TEX[textura 3D e mapa 2D]
-    MAPA --> DB[(banco)]
+    MAPA --> TEX[textura do chão 3D]
 ```
 
 O mapa de cobertura é preenchido pelo **estado real** que a plantadeira informa (DDI 161), não pelo que o TC pediu. Se o operador desliga um switch, a falha fica sem semente. Detalhes em [Task Controller](tc.md) e [Mapa de cobertura](mapa-aplicacao.md).

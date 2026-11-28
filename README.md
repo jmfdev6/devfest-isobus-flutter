@@ -13,7 +13,7 @@ Este projeto foi apresentado ao vivo no **DevFest Cerrado Nortão 2026**. Ele é
 | ![A cabine ISOBUS: a tela da plantadeira, com a seção 6 cortada pelo TC na sobreposição](docs/imagens/cabine.png) | ![O simulador 3D: o trator vermelho puxando a plantadeira, com as seções plantando e a última cortada](docs/imagens/simulador.png) |
 | O Task Controller manda a taxa da zona (16 mil/ha) e corta a seção 6, que passaria sobre o que já foi plantado. | A mesma cena em 3D: cinco seções plantando (potes verdes) e a sexta cortada (vermelho). |
 
-> 📘 **Quer os detalhes técnicos?** A documentação completa (arquitetura, mensagens CAN, algoritmos, banco de dados) está em **<https://jmfdev6.github.io/devfest-isobus-flutter/>**. Este README é o guia para começar.
+> 📘 **Quer os detalhes técnicos?** A documentação completa (arquitetura, mensagens CAN, algoritmos) está em **<https://jmfdev6.github.io/devfest-isobus-flutter/>**. Este README é o guia para começar.
 
 ---
 
@@ -53,7 +53,6 @@ A cabine então faz o que um monitor agrícola de verdade faz: mostra a tela da 
 - 🖥️ **A tela da plantadeira** dentro do app: botões, medidor de velocidade, funis verdes (plantando) ou vermelhos (desligados).
 - 🌱 **O Task Controller trabalhando**: a taxa muda sozinha conforme a zona do campo (TC-GEO) e as seções cortam na cabeceira e onde já foi plantado (TC-SEC).
 - 🚜 **O simulador**: você dirige o trator e planta o campo, vendo a semente cair no chão em 3D.
-- 📂 **Trabalhos guardados**: cada plantio fica salvo, para continuar depois.
 
 ---
 
@@ -170,8 +169,6 @@ Clique na janela do simulador antes, para o teclado ir para ela.
 | frente / ré (com o trator parado) | **R** | botão F → R |
 | trocar a câmera (cabine, atrás, de cima) | **C** | botões no canto |
 
-Tem um **volante ou controle de videogame USB**? Ligue antes de iniciar a demo: o simulador usa sozinho.
-
 ---
 
 ## Outras coisas para testar
@@ -200,7 +197,7 @@ Os registros de cada programa ficam na pasta `.demo/` (por exemplo, `.demo/cabin
 | A tela da plantadeira ficou estranha (switches não mudam) | `./demo.sh parar` e `./demo.sh iniciar`. A cabine e a plantadeira precisam ligar juntas, nessa ordem. |
 | O trator não anda | Clique na janela do simulador e aperte **W** (ou **E**, o acelerador de mão). |
 | O 3D aparece em branco | Confira se está usando o Flutter do projeto: `./demo.sh preparar` de novo. |
-| Quero apagar tudo e começar do zero | Com a demo parada: `rm -f ~/.local/share/cabine-isobus/agro.sqlite*` (apaga os talhões e trabalhos guardados). |
+| Quero plantar o campo de novo do zero | `./demo.sh iniciar` de novo (no simulador, o botão **replantar** limpa só o chão dele). |
 
 Não resolveu? Abra uma [issue](https://github.com/jmfdev6/devfest-isobus-flutter/issues) contando o que fez e colando a mensagem de erro. A [lista completa de problemas](https://jmfdev6.github.io/devfest-isobus-flutter/problemas/) está na documentação.
 
@@ -236,8 +233,8 @@ Não resolveu? Abra uma [issue](https://github.com/jmfdev6/devfest-isobus-flutte
 
 ```
 apps/cabine/       o app da cabine (Flutter): tela do VT e TC
-apps/simulador/    o simulador 3D (Flutter): física, volante, trabalhos
-pacotes/agiso/     a ponte Dart ↔ C, o talhão, o mapa de aplicação, o banco de dados
+apps/simulador/    o simulador 3D (Flutter): física e volante
+pacotes/agiso/     a ponte Dart ↔ C, o talhão e o TC automático
 pacotes/cena/      os modelos 3D e o mapa, usados pelos dois apps
 nativo/            a parte em C++: a ponte com a AgIsoStack++, o trator e a plantadeira
 scripts/           a rede virtual e os testes automáticos

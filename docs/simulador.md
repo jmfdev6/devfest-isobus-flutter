@@ -46,36 +46,15 @@ Autoteste: `cd apps/simulador && dart --enable-asserts lib/fisica.dart`.
 
 ## Controles
 
-| Comando | Teclado | Tela | USB (`/dev/input/js0`) |
-|---|---|---|---|
-| volante | A/D, ←/→ (solto, volta ao centro) | volante arrastável | eixo 0 |
-| acelerador | W, ↑ | — | eixo 5 (gatilho direito) |
-| acelerador de mão | E põe, Q tira | alavanca | — |
-| freio | S, ↓, espaço | — | eixo 2 (gatilho esquerdo) |
-| frente/ré | R | botão F → R | botão 0 (A / X) |
-| câmera | C | botões | botão 3 (Y / △) |
-
-### Volante USB
-
-[`controle_usb.dart`](https://github.com/jmfdev6/devfest-isobus-flutter/blob/main/apps/simulador/lib/controle_usb.dart) lê a **API de joystick do Linux** sem dependências: eventos de 8 bytes de `/dev/input/js0`.
-
-| Bytes | Campo |
-|---|---|
-| 0–3 | tempo (ms, `u32`) |
-| 4–5 | valor (`s16`, −32767 a 32767) |
-| 6 | tipo: 1 = botão, 2 = eixo; bit `0x80` = estado inicial |
-| 7 | número do eixo ou botão |
-
-O mapeamento está nas constantes do topo do arquivo (`eixoVolante`, `eixoAcelerador`, `eixoFreio`, `botaoSentido`, `botaoCamera`, `pedalInvertido`). Para um volante com pedais (Logitech G29, por exemplo), descubra os números com `jstest /dev/input/js0` e ajuste. Sem joystick ou sem permissão de leitura, o simulador segue sem ele.
-
-## Trabalhos
-
-| Botão | Efeito |
-|---|---|
-| novo trabalho | encerra o atual e começa um mapa em branco |
-| trabalhos | histórico do talhão (área, sementes, distância); **continuar** reabre um antigo |
-
-O trabalho é salvo **a cada 10 s** e ao fechar. Ao abrir de novo, o simulador continua o trabalho aberto do talhão ativo.
+| Comando | Teclado | Tela |
+|---|---|---|
+| volante | A/D, ←/→ (solto, volta ao centro) | volante arrastável |
+| acelerador | W, ↑ | — |
+| acelerador de mão | E põe, Q tira | alavanca |
+| freio | S, ↓, espaço | — |
+| frente/ré | R | botão F → R |
+| câmera | C | botões |
+| replantar | — | botão **replantar**: apaga o chão plantado e volta ao começo |
 
 ## Painel
 

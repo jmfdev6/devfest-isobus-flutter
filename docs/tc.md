@@ -100,7 +100,7 @@ A plantadeira em [`nativo/plantadeira/`](https://github.com/jmfdev6/devfest-isob
 
 ### Na cabine
 
-A cabine mostra só a tela do VT. O TC automático trabalha por trás, sempre ligado, com o talhão que o simulador marcou como ativo no banco (lido a cada 2 s; com `--talhao-demo`, o talhão da demo). O efeito aparece na própria tela da plantadeira: a taxa muda de zona em zona e os funis das seções cortadas ficam vermelhos.
+A cabine mostra só a tela do VT. O TC automático trabalha por trás, sempre ligado, no talhão da demo (`Talhao.padrao`), o mesmo do simulador e do `./build/trator`. O efeito aparece na própria tela da plantadeira: a taxa muda de zona em zona e os funis das seções cortadas ficam vermelhos.
 
 ### O engate
 

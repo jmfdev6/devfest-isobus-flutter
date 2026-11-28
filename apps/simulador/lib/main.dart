@@ -7,11 +7,10 @@
 //   flutter run -d linux                                 você dirige
 //   flutter run -d linux -a --ouvinte                    só acompanha o ./build/trator
 //
-// O talhão (o da demo) e cada trabalho, com o mapa de aplicação, ficam no banco local
-// (drift): a cabine lê o mesmo talhão e usa o mesmo mapa de prescrição.
+// O talhão é o da demo (Talhao.padrao), o mesmo que a cabine usa.
 //
 // Controles: W/↑ acelera, S/↓ freia, A/D ou ←/→ volante, Q/E acelerador de mão,
-// R frente/ré, C câmera. Ou o volante na tela, ou um volante USB.
+// R frente/ré, C câmera. Ou o volante na tela.
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -19,17 +18,14 @@ import 'package:cena/cena.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:agiso/agiso.dart';
-import 'package:agiso/banco.dart';
 import 'package:agiso/geo.dart';
 
-import 'controle_usb.dart';
 import 'fisica.dart';
 import 'painel.dart';
 
 final agiso = Agiso();
 final tc = TcAutomatico(agiso); // desligado: aqui só guarda o mapa de aplicação
 late final bool ouvinte;
-Banco? banco;
 
 void main(List<String> args) {
   ouvinte = args.contains('--ouvinte');
@@ -37,7 +33,6 @@ void main(List<String> args) {
     agiso.iniciarOuvinte('vcan0');
   } else {
     agiso.iniciarTrator('vcan0');
-    banco = Banco.abrir();
   }
   runApp(
     const MaterialApp(
@@ -57,19 +52,13 @@ class Simulador extends StatefulWidget {
 
 class _SimuladorState extends State<Simulador> {
   final _trator = FisicaTrator();
-  final _usb = ControleUsb();
-  Timer? _envio, _autosalvar;
+  Timer? _envio;
   List<bool>? _secoes;
   var _camera = Camera3D.atras;
 
-  // o volante: o teclado centraliza sozinho quando você solta; a mão (tela/USB), não
+  // o volante: o teclado centraliza sozinho quando você solta; a mão (na tela), não
   bool _centralizar = false, _arrastando = false;
-  double _usbAnterior = 0, _pedalTeclado = 0, _freioTeclado = 0;
-
-  // o banco: o talhão ativo e o trabalho em andamento
-  int? _talhaoId, _trabalhoId;
-  int _salvas = -1; // células plantadas no último salvamento
-  DateTime? _salvoEm;
+  double _pedalTeclado = 0, _freioTeclado = 0;
 
   // modo ouvinte: a pose desenhada persegue o GPS (que chega a 10 Hz)
   double _e = 4.6, _n = -14, _rumo = 0;
@@ -82,148 +71,33 @@ class _SimuladorState extends State<Simulador> {
       if (e is Gps && ouvinte) setState(() {});
     });
     if (!ouvinte) {
-      _usb
-        ..aoApertar = (botao) {
-          if (botao == ControleUsb.botaoSentido) _trator.trocarSentido();
-          if (botao == ControleUsb.botaoCamera) _proximaCamera();
-        }
-        ..abrir();
       _envio = Timer.periodic(
         const Duration(milliseconds: 100),
         (_) => _mandar(),
       );
-      _autosalvar = Timer.periodic(
-        const Duration(seconds: 10),
-        (_) => _salvar(),
-      );
-      _carregar();
+      _irParaOInicio();
     }
   }
 
   @override
   void dispose() {
     _envio?.cancel();
-    _autosalvar?.cancel();
-    _usb.fechar();
-    _salvar();
     super.dispose();
   }
 
-  // --- banco: talhão e trabalho ---
-
-  // Ao abrir: o talhão ativo, ou o da demo
-  Future<void> _carregar() async {
-    final b = banco!;
-    var ativo = await b.talhaoAtivo();
-    if (ativo == null) {
-      final t = Talhao.padrao();
-      ativo = (id: await b.salvarTalhao(t), talhao: t);
-    }
-    await _usarTalhao(ativo.id, ativo.talhao);
-  }
-
-  // Põe o talhão em uso: continua o trabalho aberto nele (com o mapa), ou começa um
-  Future<void> _usarTalhao(int id, Talhao t) async {
-    final b = banco!;
-    final aberto = await b.trabalhoAberto(id);
-    final mapa = aberto == null ? null : await b.mapaDoTrabalho(aberto.id);
-    _talhaoId = id;
-    _trabalhoId = aberto?.id ?? await b.iniciarTrabalho(id);
-    tc.trocarTalhao(t, mapa: mapa);
-    tc.distancia = aberto?.distanciaM ?? 0;
-    _salvas = tc.mapa.plantadas;
-    _salvoEm = DateTime.now();
-    // o trator volta ao começo: ao sul do talhão, meia barra para dentro da borda oeste
-    final l = t.limites;
+  // O trator no começo: ao sul do talhão, meia barra para dentro da borda oeste
+  void _irParaOInicio() {
+    final l = tc.talhao.limites;
     _trator.reposicionar(l.minE + Barra.largura / 2, l.minN - 14, 0);
-    if (mounted) setState(() {});
   }
 
-  Future<void> _salvar({bool encerrar = false, bool forcar = false}) async {
-    final b = banco, id = _trabalhoId;
-    if (b == null || id == null) return;
-    if (!encerrar &&
-        !forcar &&
-        tc.mapa.plantadas + tc.mapa.sobrepostasN == _salvas) {
-      return; // nada novo
-    }
-    _salvas = tc.mapa.plantadas + tc.mapa.sobrepostasN;
-    await b.salvarTrabalho(
-      id,
-      tc.mapa,
-      distancia: tc.distancia,
-      encerrar: encerrar,
-    );
-    _salvoEm = DateTime.now();
-    if (encerrar) _trabalhoId = null;
-  }
-
-  Future<void> _novoTrabalho() async {
-    await _salvar(encerrar: true);
-    final ativo = await banco!.talhaoAtivo();
-    if (ativo != null) await _usarTalhao(ativo.id, ativo.talhao);
-    _aviso('Trabalho novo: o mapa de aplicação começa em branco');
-  }
-
-  Future<void> _verTrabalhos() async {
-    final b = banco, talhao = _talhaoId;
-    if (b == null || talhao == null) return;
-    await _salvar();
-    final lista = await b.trabalhosDo(talhao);
-    if (!mounted) return;
-    String data(DateTime d) {
-      final l = d.toLocal();
-      String dois(int v) => v.toString().padLeft(2, '0');
-      return '${dois(l.day)}/${dois(l.month)} ${dois(l.hour)}:${dois(l.minute)}';
-    }
-
-    final escolhido = await showDialog<int>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Trabalhos em ${tc.talhao.nome}'),
-        content: SizedBox(
-          width: 520,
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              for (final j in lista)
-                ListTile(
-                  leading: Icon(
-                    j.fim == null
-                        ? Icons.play_circle
-                        : Icons.check_circle_outline,
-                  ),
-                  title: Text(
-                    '#${j.id}  ${data(j.inicio)}  ·  ${j.hectares.toStringAsFixed(2)} ha',
-                  ),
-                  subtitle: Text(
-                    '${(j.sementes / 1000).toStringAsFixed(1)} mil sementes  ·  '
-                    '${(j.distanciaM / 1000).toStringAsFixed(2)} km'
-                    '${j.fim == null ? '  ·  em andamento' : ''}',
-                  ),
-                  trailing: j.id == _trabalhoId
-                      ? null
-                      : TextButton(
-                          onPressed: () => Navigator.pop(context, j.id),
-                          child: const Text('continuar'),
-                        ),
-                ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('fechar'),
-          ),
-        ],
-      ),
-    );
-    if (escolhido == null) return;
-    await _salvar(encerrar: true);
-    await b.reabrirTrabalho(escolhido);
-    final ativo = await b.talhaoAtivo();
-    if (ativo != null) await _usarTalhao(ativo.id, ativo.talhao);
+  // Apaga o que foi plantado e volta ao começo (a cabine também tem a sua cobertura:
+  // reinicie a demo para ela replantar junto)
+  void _replantar() {
+    tc.limpar();
+    tc.distancia = 0;
+    _irParaOInicio();
+    setState(() {});
   }
 
   // --- a rede ---
@@ -294,12 +168,6 @@ class _SimuladorState extends State<Simulador> {
           ? 0
           : t.volante - t.volante.sign * volta;
     }
-    // volante USB: só manda quando mexe (um gamepad parado não trava o teclado)
-    if (_usb.conectado && (_usb.volante - _usbAnterior).abs() > 0.002) {
-      _usbAnterior = _usb.volante;
-      _centralizar = false;
-      t.volante = _usb.volante * 360 * FisicaTrator.voltasDoVolante;
-    }
     final limite = 360 * FisicaTrator.voltasDoVolante;
     t.volante = t.volante.clamp(-limite, limite);
 
@@ -315,8 +183,8 @@ class _SimuladorState extends State<Simulador> {
       tem(LogicalKeyboardKey.arrowDown, LogicalKeyboardKey.keyS) ||
           teclas.contains(LogicalKeyboardKey.space),
     );
-    t.pedal = math.max(_pedalTeclado, _usb.acelerador);
-    t.freio = math.max(_freioTeclado, _usb.freio);
+    t.pedal = _pedalTeclado;
+    t.freio = _freioTeclado;
     // acelerador de mão: Q tira, E põe
     if (teclas.contains(LogicalKeyboardKey.keyE)) {
       t.aceleradorDeMao = math.min(1, t.aceleradorDeMao + dt * 0.5);
@@ -349,9 +217,6 @@ class _SimuladorState extends State<Simulador> {
     final p = ouvinte ? tc.posicao : (e: t.e, n: t.n, rumo: t.rumo);
     final b = tc.barra;
     final taxa = b == null ? null : tc.talhao.taxa(b.e, b.n);
-    final salvo = _salvoEm == null
-        ? null
-        : DateTime.now().difference(_salvoEm!).inSeconds;
     return Focus(
       autofocus: true,
       // o teclado é do trator: espaço e setas não acionam nem passeiam pelos botões
@@ -384,9 +249,6 @@ class _SimuladorState extends State<Simulador> {
                       '${(tc.mapa.sementes / 1000).toStringAsFixed(1)} mil sementes',
                   if (_secoes != null)
                     'seções  ${_secoes!.map((l) => l ? '■' : '□').join(' ')}',
-                  if (_trabalhoId != null)
-                    'trabalho #$_trabalhoId  ·  salvo há ${salvo ?? 0} s',
-                  if (!ouvinte && _usb.conectado) 'controle USB conectado',
                 ],
               ),
             ),
@@ -417,20 +279,9 @@ class _SimuladorState extends State<Simulador> {
                   ),
                   if (!ouvinte) ...[
                     const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      alignment: WrapAlignment.end,
-                      children: [
-                        FilledButton.tonal(
-                          onPressed: _novoTrabalho,
-                          child: const Text('novo trabalho'),
-                        ),
-                        FilledButton.tonal(
-                          onPressed: _verTrabalhos,
-                          child: const Text('trabalhos'),
-                        ),
-                      ],
+                    FilledButton.tonal(
+                      onPressed: _replantar,
+                      child: const Text('replantar'),
                     ),
                   ],
                 ],

@@ -26,7 +26,7 @@ class Zona {
 }
 
 /// O talhão: o contorno e o mapa de prescrição (zonas com taxa), em metros a partir
-/// do canto sudoeste. Vem do banco, ou é o retângulo padrão da demo.
+/// do canto sudoeste. O da demo é o [Talhao.padrao].
 class Talhao {
   Talhao._(
     this.nome,
@@ -35,7 +35,6 @@ class Talhao {
     this.contorno,
     this.zonas,
     this.taxaPadrao,
-    this.geo,
   );
 
   final String nome;
@@ -44,13 +43,6 @@ class Talhao {
   contorno; // a área do talhão: dentro de QUALQUER um destes
   final List<Zona> zonas;
   final int taxaPadrao; // a taxa onde nenhuma zona cobre
-
-  /// A versão em graus, para guardar no banco (contorno e zonas).
-  final ({
-    List<List<List<PontoGeo>>> contorno,
-    List<({List<List<PontoGeo>> aneis, int taxa})> zonas,
-  })
-  geo;
 
   static const _metrosPorGrau = 111320.0;
 
@@ -84,7 +76,6 @@ class Talhao {
       [for (final p in contorno) metros(p)],
       [for (final z in zonas) Zona(metros(z.aneis), z.taxa)],
       taxaPadrao,
-      (contorno: contorno, zonas: zonas),
     );
   }
 
@@ -245,8 +236,8 @@ class Engate {
 }
 
 /// O mapa de aplicação: uma grade sobre o talhão; cada célula guarda a taxa que caiu
-/// nela (0 = nada plantado). É a cobertura do TC-SEC, o "as-applied" que vai para o
-/// banco e a textura do chão no 3D — tudo o mesmo buffer.
+/// nela (0 = nada plantado). É a cobertura do TC-SEC e a textura do chão no 3D — o
+/// mesmo buffer.
 class MapaAplicacao {
   MapaAplicacao._(
     this.origemE,
@@ -288,7 +279,7 @@ class MapaAplicacao {
     );
   }
 
-  /// Uma grade guardada (do banco).
+  /// Uma grade com dados prontos (o 3D usa uma vazia, com a mesma grade, num isolate).
   factory MapaAplicacao.de({
     required double origemE,
     required double origemN,

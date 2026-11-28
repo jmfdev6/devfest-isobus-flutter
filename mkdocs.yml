@@ -75,7 +75,6 @@ nav:
   - Apps:
       - Simulador e física: simulador.md
       - 3D com flutter_scene: 3d.md
-      - Banco de dados (drift): banco.md
   - Referência:
       - Problemas comuns: problemas.md
       - Glossário: glossario.md

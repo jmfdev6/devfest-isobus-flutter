@@ -15,7 +15,7 @@ e = (lon − lon0) · 111 320 · cos(lat0)
 n = (lat − lat0) · 111 320
 ```
 
-Para talhões de alguns quilômetros, o erro é de centímetros, muito menor que a largura de uma seção. O banco guarda o talhão **em graus**, e a origem é recalculada ao abrir.
+Para talhões de alguns quilômetros, o erro é de centímetros, muito menor que a largura de uma seção.
 
 | Método | Descrição |
 |---|---|
@@ -27,5 +27,3 @@ Para talhões de alguns quilômetros, o erro é de centímetros, muito menor que
 ## Trocar o talhão
 
 O talhão vem do `Talhao.padrao()`, em [`geo.dart`](https://github.com/jmfdev6/devfest-isobus-flutter/blob/main/pacotes/agiso/lib/geo.dart). Para outro campo, mude ali o contorno, as zonas e a origem. Se o `./build/trator` for usado (`--automatico`), mude também as constantes do topo de [`trator.cpp`](https://github.com/jmfdev6/devfest-isobus-flutter/blob/main/nativo/trator/trator.cpp), para ele andar no mesmo lugar.
-
-O banco guarda o talhão ativo: depois de mudar o padrão, apague o banco (`rm -f ~/.local/share/cabine-isobus/agro.sqlite*`, com os apps fechados) para ele ser gravado de novo.

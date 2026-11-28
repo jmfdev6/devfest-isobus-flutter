@@ -16,7 +16,7 @@ Documentação técnica do projeto apresentado no **DevFest Cerrado Nortão 2026
 - **Task Controller (TC, ISO 11783-10):** recebe o DDOP, assina os valores do implemento e envia *setpoints* (taxa alvo, estado das seções).
 - **TC-GEO e TC-SEC automáticos:** com a posição do GPS (NMEA 2000), escolhe a taxa pelo mapa de prescrição e corta as seções fora do talhão ou sobre área já plantada.
 - **Simulador 3D** ([flutter_scene](https://pub.dev/packages/flutter_scene)): é o trator na rede (GPS NMEA 2000, velocidade de solo, rotação do motor), com física de bicicleta e plantadeira rebocada.
-- **TC-BAS, TC-GEO e TC-SEC** mostrados ao vivo na cabine, com o mapa de cobertura e persistência local com **drift** (SQLite).
+- **TC-BAS, TC-GEO e TC-SEC** trabalhando ao vivo: a taxa muda pela zona e as seções cortam na cabeceira e na sobreposição.
 
 ## Mapa da documentação
 
@@ -30,9 +30,8 @@ Documentação técnica do projeto apresentado no **DevFest Cerrado Nortão 2026
 | mexer no desenho da tela do implemento | [Terminal Virtual](vt.md) |
 | entender DDOP, DDIs e o corte de seções | [Task Controller](tc.md) |
 | mudar o talhão ou a cobertura | [Talhão](talhao.md), [Mapa de cobertura](mapa-aplicacao.md) |
-| ajustar a física ou o controle USB | [Simulador e física](simulador.md) |
+| ajustar a física | [Simulador e física](simulador.md) |
 | mexer no 3D | [3D com flutter_scene](3d.md) |
-| mudar as tabelas | [Banco de dados](banco.md) |
 
 ## Números de referência
 

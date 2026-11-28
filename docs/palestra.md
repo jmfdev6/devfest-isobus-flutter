@@ -133,10 +133,6 @@ flutter run -d linux -a --ouvinte       # só acompanha o ./build/trator
 
 Controles e física em [Simulador](simulador.md); renderização em [3D](3d.md).
 
-## 11. Trabalhos
-
-No simulador, **novo trabalho** começa do zero e **trabalhos** mostra o histórico (área, sementes, distância) e deixa continuar um antigo. Detalhes em [Mapa de cobertura](mapa-aplicacao.md) e [Banco](banco.md).
-
 ## Ordem no dia
 
 A ordem importa: **a cabine sobe antes da plantadeira** (veja [por quê](demo.md#iniciar)).
@@ -148,7 +144,7 @@ cd build && ./seeder --interface vcan0                   # 3. plantadeira (esper
 cd apps/simulador && flutter run -d linux                # 4. trator: você dirige
 ```
 
-Sem motorista: troque o 4 por `./build/trator vcan0 8`, abra a cabine com `-a --talhao-demo` e o simulador com `-a --ouvinte`. É o que `./demo.sh iniciar --automatico` faz.
+Sem motorista: troque o 4 por `./build/trator vcan0 8`, e abra o simulador com `-a --ouvinte`. É o que `./demo.sh iniciar --automatico` faz.
 
 Antes de subir no palco, rode `./demo.sh testar` na máquina da apresentação.
 

@@ -1,6 +1,6 @@
 # Mapa de cobertura
 
-O mapa de aplicação (*as-applied*) registra **onde e quanta semente caiu**. Um único buffer serve ao TC-SEC (o que já foi plantado), à textura do chão no 3D e ao que vai para o banco.
+O mapa de aplicação (*as-applied*) registra **onde e quanta semente caiu**. Um único buffer serve ao TC-SEC (o que já foi plantado) e à textura do chão no 3D.
 
 ## A grade
 
@@ -37,6 +37,5 @@ Totais mantidos a cada marcação: `plantadas`, `sobrepostasN`, `hectares`, `sem
 |---|---|
 | TC-SEC | `coberto(e, n)`: a seção que passaria sobre célula já plantada é cortada |
 | chão 3D do simulador | a mesma grade como textura: cada célula plantada vira terra revolvida (veja [3D](3d.md#o-chao-uma-textura)) |
-| banco | o trabalho guarda a grade, para continuar depois (veja [Banco](banco.md)) |
 
-A cobertura da cabine fica na memória: para replantar o talhão do zero, reinicie a demo (`./demo.sh iniciar`).
+A cobertura fica na memória de cada app: para replantar o talhão do zero, reinicie a demo (`./demo.sh iniciar`). O botão **replantar** do simulador limpa só a dele.

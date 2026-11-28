@@ -1,12 +1,9 @@
 // main.dart — a cabine em Flutter: a rotação (passo 6), a tela do VT e a taxa do TC (passos 9 e 10)
 //
 // O TC automático (TC-GEO e TC-SEC) trabalha por trás, sempre ligado: a taxa pela zona e
-// o corte das seções. O talhão é o que o simulador marcou como ativo no banco local.
-import 'dart:async';
-
+// o corte das seções, no talhão da demo (Talhao.padrao, o mesmo do simulador).
 import 'package:flutter/material.dart';
 import 'package:agiso/agiso.dart';
-import 'package:agiso/banco.dart';
 import 'package:agiso/geo.dart';
 
 import 'tela_vt.dart';
@@ -16,31 +13,10 @@ final agiso = Agiso();
 // primeiro uso, e sem nada na tela usando o TC ele nunca ouviria o GPS.
 late final TcAutomatico tc;
 
-// flutter run -d linux -a --talhao-demo   fica no talhão da demo (o do ./build/trator)
-late final bool usarBanco;
-
-void main(List<String> args) {
-  usarBanco = !args.contains('--talhao-demo');
+void main() {
   tc = TcAutomatico(agiso)..ligado = true;
   agiso.iniciar('vcan0');
-  if (usarBanco) _vigiarTalhao(Banco.abrir());
   runApp(const MaterialApp(home: Cabine()));
-}
-
-// Outro programa (o simulador) pode trocar o talhão ativo: pergunta a cada 2 s qual é
-void _vigiarTalhao(Banco banco) {
-  int? atual;
-  Future<void> olhar() async {
-    final id = await banco.idTalhaoAtivo();
-    if (id == null || id == atual) return;
-    final ativo = await banco.talhaoAtivo();
-    if (ativo == null) return;
-    atual = ativo.id;
-    tc.trocarTalhao(ativo.talhao);
-  }
-
-  olhar();
-  Timer.periodic(const Duration(seconds: 2), (_) => olhar());
 }
 
 class Cabine extends StatelessWidget {

@@ -40,12 +40,3 @@
 | o trator não anda | clique na janela do simulador (foco do teclado) e acelere: W, ou E (acelerador de mão) |
 | "GPS: aguardando o trator" (`--ouvinte`) | o `./build/trator` não está rodando, ou está em outra rede |
 | dois tratores (o 3D pula, o GPS salta) | simulador dirigível e `./build/trator` juntos: use um só |
-| o volante USB não responde | confira `ls -l /dev/input/js0` (permissão de leitura) e os números em `jstest`; ajuste o topo de `controle_usb.dart` |
-
-## Banco
-
-| Sintoma | Causa e solução |
-|---|---|
-| a cabine não trocou para o talhão ativo | ela lê o talhão **ativo** a cada 2 s; confira com `dart run bin/banco.dart` (o ativo tem `*`). Com `--talhao-demo` (ou no modo texto), a cabine usa sempre o talhão da demo. |
-| começar do zero | apps fechados: `rm -f ~/.local/share/cabine-isobus/agro.sqlite*` |
-| `database is locked` | outro processo segurou a escrita mais de 5 s (`busy_timeout`); feche apps duplicados |

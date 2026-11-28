@@ -37,4 +37,3 @@
 | **UTM** | *Universal Transverse Mercator*: projeção em metros, em zonas de 6° de longitude |
 | **vcan0** | interface CAN virtual do Linux |
 | **VT** | *Virtual Terminal*, ISO 11783-6: a tela universal da cabine |
-| **WAL** | *Write-Ahead Logging*: modo do SQLite que deixa ler enquanto outro processo escreve |

@@ -39,7 +39,7 @@ sequenceDiagram
 !!! info "Por que a cabine sobe antes da plantadeira"
     O cliente de VT da plantadeira guarda o último valor que enviou para cada objeto. Se a cabine reinicia depois, ela recebe o *object pool* com os valores iniciais, e a plantadeira não reenvia o que acha que já mandou: switches e funis ficam dessincronizados. **Reiniciou a cabine? Reinicie a plantadeira.** O `iniciar` já faz isso, porque chama `parar` antes.
 
-No modo `--automatico`, a cabine recebe `--talhao-demo` para usar o talhão 60 × 120 m que o `./build/trator` percorre, em vez do talhão ativo do banco.
+No modo `--automatico`, o `./build/trator` percorre o mesmo talhão 60 × 120 m que a cabine e o simulador usam (`Talhao.padrao`).
 
 Registros e PIDs ficam em `.demo/` (`cabine.log`, `plantadeira.log`, `simulador.log`, `trator.log`, `rede`).
 
@@ -47,7 +47,6 @@ Registros e PIDs ficam em `.demo/` (`cabine.log`, `plantadeira.log`, `simulador.
 
 | App | Opção | Efeito |
 |---|---|---|
-| cabine | `--talhao-demo` | usa o talhão da demo, sem ler o banco |
 | simulador | `--ouvinte` | não é o trator: só acompanha o GPS da rede |
 
 ## testar
@@ -59,7 +58,6 @@ Registros e PIDs ficam em `.demo/` (`cabine.log`, `plantadeira.log`, `simulador.
 | Etapa | Comando | Confere |
 |---|---|---|
 | análise | `dart analyze` (pacote `agiso`) | sem avisos |
-| banco | `dart run bin/banco.dart verificar` | ida e volta num banco temporário, incluindo 40 células sobrepostas |
 | física | `dart --enable-asserts lib/fisica.dart` | aceleração, freio, raio de giro, ré |
 | TC | `scripts/teste_tc.sh` | DDOP, assinatura, taxa alvo, controle de seções, depósito |
 | GEO/SEC | `scripts/teste_geo.sh` | GPS NMEA 2000, taxa por zona, corte na cabeceira e na sobreposição |
@@ -78,7 +76,7 @@ DART| SEC seções pedidas ■■■■■□
 
 ## CI
 
-O [`ci.yml`](https://github.com/jmfdev6/devfest-isobus-flutter/blob/main/.github/workflows/ci.yml) roda em cada push e PR: checkout com submódulos, `ninja-build` e `libgtk-3-dev`, Flutter 3.47.9, `./demo.sh preparar`, `dart analyze` e `flutter analyze` nos três pacotes Flutter, e os autotestes de banco e física. Os testes com a rede CAN ficam de fora: os *runners* do GitHub não têm `vcan`.
+O [`ci.yml`](https://github.com/jmfdev6/devfest-isobus-flutter/blob/main/.github/workflows/ci.yml) roda em cada push e PR: checkout com submódulos, `ninja-build` e `libgtk-3-dev`, Flutter 3.47.9, `./demo.sh preparar`, `dart analyze` e `flutter analyze` nos três pacotes Flutter, e o autoteste de física. Os testes com a rede CAN ficam de fora: os *runners* do GitHub não têm `vcan`.
 
 O site desta documentação é publicado pelo [`docs.yml`](https://github.com/jmfdev6/devfest-isobus-flutter/blob/main/.github/workflows/docs.yml) a cada push na `main` que mexa em `docs/` ou no `mkdocs.yml`. Para ver localmente:
 

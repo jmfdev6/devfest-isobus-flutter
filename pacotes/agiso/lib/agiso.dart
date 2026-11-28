@@ -99,7 +99,10 @@ class Secoes extends Evento {
 String acharPonte() {
   final variavel = Platform.environment['AGISO_LIB'];
   if (variavel != null && File(variavel).existsSync()) return variavel;
-  for (final inicio in [Directory.current.path, File(Platform.resolvedExecutable).parent.path]) {
+  for (final inicio in [
+    Directory.current.path,
+    File(Platform.resolvedExecutable).parent.path,
+  ]) {
     var pasta = Directory(inicio).absolute;
     for (var i = 0; i < 10; i++) {
       final candidata = File('${pasta.path}/build/libagiso.so');

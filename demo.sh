@@ -98,7 +98,7 @@ esperar() { # $1 = arquivo, $2 = padrão, $3 = segundos
 rodando() { [[ -f "$DEMO/$1.pid" ]] && kill -0 "$(cat "$DEMO/$1.pid")" 2>/dev/null; }
 
 iniciar() {
-  local automatico=0 tc=() resto=()
+  local automatico=0 resto=()
   while [[ $# -gt 0 ]]; do
     case $1 in
       --automatico) automatico=1 ;;
@@ -106,8 +106,6 @@ iniciar() {
     esac
     shift
   done
-  # sem motorista, o trator automático percorre o talhão da demo: a cabine fica nele
-  ((automatico)) && tc+=(--talhao-demo)
   [[ -x "$CABINE" && -x "$SIMULADOR" && -x build/seeder ]] || preparar
   parar >/dev/null 2>&1 || true
   mkdir -p "$DEMO"
@@ -116,7 +114,7 @@ iniciar() {
 
   # a ordem importa: a cabine antes da plantadeira (ela guarda o que mostrou na tela)
   azul "cabine..."
-  rodar cabine "$RAIZ" "$CABINE" "${tc[@]}"
+  rodar cabine "$RAIZ" "$CABINE"
   sleep 4
   azul "plantadeira..."
   rodar plantadeira "$RAIZ/build" ./seeder --interface vcan0
@@ -162,8 +160,8 @@ testar() {
     rodando "$nome" && erro "a demo está rodando: ./demo.sh parar antes de testar"
   done
   [[ -x build/seeder && -x build/trator ]] || preparar
-  azul "pacote Dart: análise e banco..."
-  (cd pacotes/agiso && dart_ analyze && dart_ run bin/banco.dart verificar)
+  azul "pacote Dart: análise..."
+  (cd pacotes/agiso && dart_ analyze)
   azul "simulador: física..."
   (cd apps/simulador && dart_ --enable-asserts lib/fisica.dart)
   # os testes com a rede CAN numa bolha só deles, sem mexer na vcan0 nem na da demo
